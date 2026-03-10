@@ -64,3 +64,8 @@ export interface InstanceLogsResponse {
   tail: number;
   lines: string[];
 }
+
+export interface AppConfigResponse {
+  configPath: string;
+  config: Record<string, string | number | boolean | null>;
+}

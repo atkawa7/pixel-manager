@@ -1,4 +1,5 @@
 import type {
+  AppConfigResponse,
   InstancesResponse,
   ManagersResponse,
   ModelsResponse,
@@ -77,6 +78,11 @@ export async function deleteModel(name: string): Promise<ModelsResponse> {
 export async function getManagers(): Promise<ManagersResponse> {
   const response = await fetch(buildURL("/managers"));
   return parseJson<ManagersResponse>(response);
+}
+
+export async function getAppConfig(): Promise<AppConfigResponse> {
+  const response = await fetch(buildURL("/config"));
+  return parseJson<AppConfigResponse>(response);
 }
 
 export async function getInstances(baseURL = ""): Promise<InstancesResponse> {

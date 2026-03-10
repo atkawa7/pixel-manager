@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -148,6 +149,35 @@ func configPath() string {
 	return "config.yaml"
 }
 
+func ConfigPath() string {
+	return configPath()
+}
+
+func maskSecret(v string) string {
+	if strings.TrimSpace(v) == "" {
+		return ""
+	}
+	return "******"
+}
+
+func (c Config) SafeView() map[string]any {
+	return map[string]any{
+		"managerPort":        c.ManagerPort,
+		"pixelStreamingIP":   c.PixelStreamingIP,
+		"defaultExe":         c.DefaultExe,
+		"maxInstances":       c.MaxInstances,
+		"etcdHost":           c.EtcdHost,
+		"etcdUser":           c.EtcdUser,
+		"etcdPassword":       maskSecret(c.EtcdPassword),
+		"etcdDialTimeoutMS":  c.EtcdDialTimeoutMS,
+		"etcdRequestTimeout": c.EtcdRequestTimeout,
+		"defaultResX":        c.DefaultResX,
+		"defaultResY":        c.DefaultResY,
+		"signalServerURL":    c.SignalServerURL,
+		"startupInstances":   c.StartupInstances,
+	}
+}
+
 func Load() Config {
 	cfg := defaultConfig()
 
@@ -199,6 +229,10 @@ func Load() Config {
 	cfg.DefaultResY = envInt("DEFAULT_RES_Y", cfg.DefaultResY)
 	cfg.SignalServerURL = env("SIGNAL_SERVER_URL", cfg.SignalServerURL)
 	cfg.StartupInstances = envInt("STARTUP_INSTANCES", cfg.StartupInstances)
+
+	if b, err := json.Marshal(cfg.SafeView()); err == nil {
+		log.Printf("effective config path=%q values=%s", path, string(b))
+	}
 
 	return cfg
 }

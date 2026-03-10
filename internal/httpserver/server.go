@@ -62,6 +62,7 @@ func (s *Server) registerAPIRoutes(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/models", s.handleModels)
 	mux.HandleFunc(prefix+"/models/", s.handleModelByName)
 	mux.HandleFunc(prefix+"/managers", s.handleManagers)
+	mux.HandleFunc(prefix+"/config", s.handleConfig)
 	mux.HandleFunc(prefix+"/openapi.json", s.handleOpenAPI)
 }
 
@@ -292,6 +293,18 @@ func (s *Server) handleManagers(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"count":    len(formatted),
 		"managers": formatted,
+	})
+}
+
+func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"configPath": config.ConfigPath(),
+		"config":     s.cfg.SafeView(),
 	})
 }
 
