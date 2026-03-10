@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
@@ -56,7 +57,7 @@ export function ModelsPage() {
     void loadModels();
   }, []);
 
-  async function onSaveModel(event: React.FormEvent<HTMLFormElement>) {
+  async function onSaveModel(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim() || !exePath.trim()) {
       notify("Model name and path are required", "error");

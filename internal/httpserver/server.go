@@ -5,8 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"net/http"
-	"os"
+	"net/url"
 	"path/filepath"
 	"pixel-manager/internal/config"
 	"pixel-manager/internal/manager"
@@ -28,25 +29,22 @@ func New(cfg config.Config, mgr *manager.Manager) *Server {
 
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("/instances", s.handleInstances)
-	mux.HandleFunc("/instances/", s.handleInstanceByID)
-	mux.HandleFunc("/models", s.handleModels)
-	mux.HandleFunc("/models/", s.handleModelByName)
-	mux.HandleFunc("/managers", s.handleManagers)
-	mux.HandleFunc("/openapi.json", s.handleOpenAPI)
+	s.registerAPIRoutes(mux, "")
+	s.registerAPIRoutes(mux, "/api")
 
-	publicDir := filepath.Join(".", "public")
+	mux.HandleFunc("/portal.html", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/portal", http.StatusFound)
+	})
+	mux.HandleFunc("/managers.html", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/managers", http.StatusFound)
+	})
+	mux.HandleFunc("/models.html", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/models", http.StatusFound)
+	})
 
-	fileServer := http.FileServer(http.Dir(publicDir))
-
-	if _, err := os.Stat(publicDir); err == nil {
-		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-			if r.URL.Path == "/" {
-				http.Redirect(w, r, "/portal.html", http.StatusFound)
-				return
-			}
-			fileServer.ServeHTTP(w, r)
-		})
+	staticFS, err := fs.Sub(embeddedPublicFiles, "public")
+	if err == nil {
+		mux.Handle("/", spaHandler(staticFS))
 	}
 
 	s.server = &http.Server{
@@ -55,6 +53,15 @@ func New(cfg config.Config, mgr *manager.Manager) *Server {
 	}
 
 	return s
+}
+
+func (s *Server) registerAPIRoutes(mux *http.ServeMux, prefix string) {
+	mux.HandleFunc(prefix+"/instances", s.handleInstances)
+	mux.HandleFunc(prefix+"/instances/", s.handleInstanceByID)
+	mux.HandleFunc(prefix+"/models", s.handleModels)
+	mux.HandleFunc(prefix+"/models/", s.handleModelByName)
+	mux.HandleFunc(prefix+"/managers", s.handleManagers)
+	mux.HandleFunc(prefix+"/openapi.json", s.handleOpenAPI)
 }
 
 func (s *Server) Start() error {
@@ -127,7 +134,7 @@ func (s *Server) handleInstances(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleInstanceByID(w http.ResponseWriter, r *http.Request) {
-	id := strings.TrimPrefix(r.URL.Path, "/instances/")
+	id := suffixAfter(r.URL.Path, "/instances/")
 	if id == "" {
 		http.NotFound(w, r)
 		return
@@ -214,7 +221,7 @@ func (s *Server) handleModels(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleModelByName(w http.ResponseWriter, r *http.Request) {
-	name := strings.TrimPrefix(r.URL.Path, "/models/")
+	name := suffixAfter(r.URL.Path, "/models/")
 	if name == "" {
 		http.NotFound(w, r)
 		return
@@ -296,4 +303,48 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func strconv(v int) string {
 	return fmt.Sprintf("%d", v)
+}
+
+func suffixAfter(path, token string) string {
+	idx := strings.Index(path, token)
+	if idx < 0 {
+		return ""
+	}
+	value := strings.TrimPrefix(path[idx:], token)
+	if strings.Contains(value, "/") {
+		return ""
+	}
+	return value
+}
+
+func spaHandler(staticFS fs.FS) http.Handler {
+	fileServer := http.FileServer(http.FS(staticFS))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cleanPath := strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")
+		if cleanPath == "." || cleanPath == "" {
+			serveFileFromFS(fileServer, r, w, "/index.html")
+			return
+		}
+
+		if _, err := fs.Stat(staticFS, cleanPath); err == nil {
+			fileServer.ServeHTTP(w, r)
+			return
+		}
+
+		if filepath.Ext(cleanPath) == "" {
+			serveFileFromFS(fileServer, r, w, "/index.html")
+			return
+		}
+
+		http.NotFound(w, r)
+	})
+}
+
+func serveFileFromFS(fileServer http.Handler, r *http.Request, w http.ResponseWriter, path string) {
+	cloned := r.Clone(r.Context())
+	cloned.URL = new(url.URL)
+	*cloned.URL = *r.URL
+	cloned.URL.Path = path
+	fileServer.ServeHTTP(w, cloned)
 }

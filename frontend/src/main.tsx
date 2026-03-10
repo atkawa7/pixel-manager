@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { AppLayout } from "./ui/AppLayout";
 import { PortalPage } from "./pages/PortalPage";
@@ -34,7 +34,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <HashRouter>
+      <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>
             <Route path="/" element={<Navigate to="/portal" replace />} />
@@ -44,7 +44,7 @@ function App() {
             <Route path="*" element={<Navigate to="/portal" replace />} />
           </Route>
         </Routes>
-      </HashRouter>
+      </BrowserRouter>
     </ThemeProvider>
   );
 }
