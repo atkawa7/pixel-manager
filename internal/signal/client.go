@@ -5,19 +5,27 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"pixel-manager/internal/manager"
 	"time"
 )
 
 type Client interface {
-	FetchAllStreamers(ctx context.Context) ([]manager.Streamer, error)
+	FetchAllStreamers(ctx context.Context) ([]Streamer, error)
 }
 
 type HTTPClient struct {
 	BaseURL string
 }
 
-func (c *HTTPClient) FetchAllStreamers(ctx context.Context) ([]manager.Streamer, error) {
+type StreamerSubscriber struct {
+	PlayerID string `json:"playerId"`
+}
+
+type Streamer struct {
+	StreamerID  string               `json:"streamerId"`
+	Subscribers []StreamerSubscriber `json:"subscribers"`
+}
+
+func (c *HTTPClient) FetchAllStreamers(ctx context.Context) ([]Streamer, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+"/streamers", nil)
 	if err != nil {
 		return nil, err
@@ -34,7 +42,7 @@ func (c *HTTPClient) FetchAllStreamers(ctx context.Context) ([]manager.Streamer,
 		return nil, fmt.Errorf("signal server returned status %d", resp.StatusCode)
 	}
 
-	var out []manager.Streamer
+	var out []Streamer
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
 		return nil, err
 	}

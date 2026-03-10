@@ -8,7 +8,7 @@ import (
 	"pixel-manager/internal/config"
 	"pixel-manager/internal/httpserver"
 	"pixel-manager/internal/manager"
-	"pixel-manager/internal/signal"
+	signalclient "pixel-manager/internal/signal"
 	"syscall"
 	"time"
 
@@ -29,7 +29,7 @@ func main() {
 	}
 	defer etcd.Close()
 
-	signalClient := &signal.HTTPClient{
+	signalClient := &signalclient.HTTPClient{
 		BaseURL: cfg.SignalServerURL,
 	}
 

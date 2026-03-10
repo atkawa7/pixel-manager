@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Managers - Pixel Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body { padding-top: 20px; background-color: #f8f9fa; }
+        .card { margin-bottom: 20px; }
+        .manager-card { transition: transform 0.2s; }
+        .manager-card:hover { transform: translateY(-5px); }
+        .status-badge { font-size: 0.85rem; }
+        .current-manager { border: 2px solid #0d6efd; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Hero Section with Navigation -->
+    <div class="bg-primary text-white p-4 rounded mb-4 shadow-sm">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3"><i class="bi bi-hdd-network"></i> Cluster Managers</h1>
+                <p class="mb-0">View all registered manager nodes in the cluster</p>
+            </div>
+            <div>
+                <a href="/portal.html" class="btn btn-light btn-sm me-2">
+                    <i class="bi bi-arrow-left"></i> Back to Portal
+                </a>
+                <a href="/models.html" class="btn btn-light btn-sm me-2">
+                    <i class="bi bi-box-seam"></i> Models
+                </a>
+                <a href="/docs" class="btn btn-light btn-sm">
+                    <i class="bi bi-file-text"></i> API Docs
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cluster Stats Card -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="p-3">
+                        <i class="bi bi-hdd-network fs-1 text-primary"></i>
+                        <h3 class="mt-2 mb-0" id="totalManagers">0</h3>
+                        <small class="text-muted">Total Managers</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3">
+                        <i class="bi bi-check-circle fs-1 text-success"></i>
+                        <h3 class="mt-2 mb-0" id="activeManagers">0</h3>
+                        <small class="text-muted">Active</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3">
+                        <i class="bi bi-server fs-1 text-info"></i>
+                        <h3 class="mt-2 mb-0" id="totalInstances">0</h3>
+                        <small class="text-muted">Total Instances</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Managers List Card -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title mb-0"><i class="bi bi-list-ul"></i> Active Managers</h5>
+                <button onclick="loadManagers()" class="btn btn-success btn-sm">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                </button>
+            </div>
+            <div id="managersContainer" class="row">
+                <!-- Managers will be inserted here -->
+            </div>
+            <div id="loadingMessage" class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading managers...</p>
+            </div>
+            <div id="noManagersMessage" class="alert alert-warning" style="display:none;">
+                <i class="bi bi-exclamation-triangle"></i> No managers registered in the cluster.
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- Manager Details Modal -->
+<div class="modal fade" id="detailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="bi bi-info-circle"></i> Manager Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div id="managerDetails"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    let detailsModal;
+    let allInstances = [];
+
+    window.onload = function() {
+        detailsModal = new bootstrap.Modal(document.getElementById('detailsModal'));
+        loadManagers();
+        // Auto-refresh every 10 seconds
+        setInterval(loadManagers, 10000);
+    };
+
+    async function loadManagers() {
+        const loadingMsg = document.getElementById('loadingMessage');
+        const noManagersMsg = document.getElementById('noManagersMessage');
+        const container = document.getElementById('managersContainer');
+
+        try {
+            // Fetch managers
+            const managersRes = await fetch('/managers');
+            const managersData = await managersRes.json();
+
+            // Fetch instances for stats
+            const instancesRes = await fetch('/instances');
+            const instancesData = await instancesRes.json();
+            allInstances = instancesData.active || [];
+
+            loadingMsg.style.display = 'none';
+
+            const managers = managersData.managers || [];
+
+            if (managers.length === 0) {
+                container.innerHTML = '';
+                noManagersMsg.style.display = 'block';
+                updateStats(0, 0, 0);
+                return;
+            }
+
+            noManagersMsg.style.display = 'none';
+            displayManagers(managers);
+
+        } catch (err) {
+            console.error('Failed to load managers:', err);
+            loadingMsg.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to load managers: ${err.message}
+                </div>
+            `;
+        }
+    }
+
+    function displayManagers(managers) {
+        const container = document.getElementById('managersContainer');
+        container.innerHTML = '';
+
+        const currentHost = window.location.hostname;
+        let activeCount = 0;
+
+        managers.forEach(manager => {
+            const isCurrent = manager.host === currentHost || manager.url.includes(currentHost);
+            const instancesCount = allInstances.filter(inst => inst.host === manager.host).length;
+
+            // Check if manager is responsive
+            checkManagerHealth(manager.url).then(isHealthy => {
+                if (isHealthy) activeCount++;
+                updateStats(managers.length, activeCount, allInstances.length);
+            });
+
+            const card = document.createElement('div');
+            card.className = 'col-md-6 col-lg-4 mb-3';
+            card.innerHTML = `
+                <div class="card manager-card h-100 shadow-sm ${isCurrent ? 'current-manager' : ''}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-3">
+                            <div>
+                                <h6 class="card-title mb-1">
+                                    <i class="bi bi-server"></i> ${manager.host}
+                                </h6>
+                                ${isCurrent ? '<span class="badge bg-primary">Current Node</span>' : ''}
+                            </div>
+                            <span class="badge bg-success status-badge" id="status-${manager.host}">
+                                <span class="spinner-border spinner-border-sm" role="status"></span>
+                            </span>
+                        </div>
+
+                        <div class="mb-2">
+                            <small class="text-muted"><i class="bi bi-link-45deg"></i> URL:</small><br>
+                            <code class="text-break">${manager.url}</code>
+                        </div>
+
+                        <div class="mb-3">
+                            <small class="text-muted"><i class="bi bi-collection"></i> Instances:</small>
+                            <strong class="ms-2">${instancesCount}</strong>
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button onclick="showManagerDetails('${manager.host}', '${manager.url}')"
+                                    class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-info-circle"></i> View Details
+                            </button>
+                            ${!isCurrent ? `
+                                <a href="${manager.url}" target="_blank" class="btn btn-sm btn-outline-secondary">
+                                    <i class="bi bi-box-arrow-up-right"></i> Open Dashboard
+                                </a>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(card);
+
+            // Check health status
+            checkManagerHealth(manager.url).then(isHealthy => {
+                const statusBadge = document.getElementById(`status-${manager.host}`);
+                if (statusBadge) {
+                    statusBadge.innerHTML = isHealthy
+                        ? '<i class="bi bi-check-circle"></i> Online'
+                        : '<i class="bi bi-x-circle"></i> Offline';
+                    statusBadge.className = `badge status-badge ${isHealthy ? 'bg-success' : 'bg-danger'}`;
+                }
+            });
+        });
+    }
+
+    async function checkManagerHealth(url) {
+        try {
+            const response = await fetch(`${url}/instances`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(3000)
+            });
+            return response.ok;
+        } catch (err) {
+            return false;
+        }
+    }
+
+    async function showManagerDetails(host, url) {
+        const detailsDiv = document.getElementById('managerDetails');
+        detailsDiv.innerHTML = '<div class="text-center"><div class="spinner-border"></div></div>';
+        detailsModal.show();
+
+        try {
+            const [instancesRes, modelsRes] = await Promise.all([
+                fetch(`${url}/instances`),
+                fetch(`${url}/models`)
+            ]);
+
+            const instancesData = await instancesRes.json();
+            const modelsData = await modelsRes.json();
+
+            const hostInstances = instancesData.active.filter(inst => inst.host === host);
+
+            detailsDiv.innerHTML = `
+                <div class="mb-3">
+                    <h6><i class="bi bi-server"></i> Host Information</h6>
+                    <table class="table table-sm">
+                        <tr><td><strong>Hostname:</strong></td><td>${host}</td></tr>
+                        <tr><td><strong>URL:</strong></td><td><code>${url}</code></td></tr>
+                        <tr><td><strong>Active Instances:</strong></td><td>${hostInstances.length} / ${instancesData.maxInstances}</td></tr>
+                    </table>
+                </div>
+
+                <div class="mb-3">
+                    <h6><i class="bi bi-box-seam"></i> Available Models</h6>
+                    <ul class="list-group">
+                        ${Object.keys(modelsData.models).map(model =>
+                `<li class="list-group-item">
+                                <i class="bi bi-box"></i> ${model}
+                                ${model === 'default' ? '<span class="badge bg-primary ms-2">Default</span>' : ''}
+                            </li>`
+            ).join('')}
+                    </ul>
+                </div>
+
+                <div>
+                    <h6><i class="bi bi-collection"></i> Running Instances</h6>
+                    ${hostInstances.length > 0 ? `
+                        <div class="table-responsive">
+                            <table class="table table-sm table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Model</th>
+                                        <th>Port</th>
+                                        <th>Started</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${hostInstances.map(inst => `
+                                        <tr>
+                                            <td><code>${inst.pixelStreamingId.substring(0, 8)}...</code></td>
+                                            <td>${inst.model}</td>
+                                            <td>${inst.port}</td>
+                                            <td>${new Date(inst.startTime).toLocaleString()}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    ` : '<p class="text-muted">No instances running</p>'}
+                </div>
+            `;
+        } catch (err) {
+            detailsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="bi bi-exclamation-triangle"></i> Failed to load manager details: ${err.message}
+                </div>
+            `;
+        }
+    }
+
+    function updateStats(total, active, instances) {
+        document.getElementById('totalManagers').textContent = total;
+        document.getElementById('activeManagers').textContent = active;
+        document.getElementById('totalInstances').textContent = instances;
+    }
+</script>
+
+</body>
+</html>

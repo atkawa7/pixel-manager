@@ -37,12 +37,3 @@ type ModelRequest struct {
 	Name    string `json:"name"`
 	ExePath string `json:"exePath"`
 }
-
-type StreamerSubscriber struct {
-	PlayerID string `json:"playerId"`
-}
-
-type Streamer struct {
-	StreamerID  string               `json:"streamerId"`
-	Subscribers []StreamerSubscriber `json:"subscribers"`
-}

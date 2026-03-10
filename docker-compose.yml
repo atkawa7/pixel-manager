@@ -1,0 +1,21 @@
+services:
+  etcd:
+    image: quay.io/coreos/etcd:v3.6.5
+    container_name: etcd
+    hostname: etcd-node1
+    command: /usr/local/bin/etcd -advertise-client-urls http://0.0.0.0:2379 -listen-client-urls http://0.0.0.0:2379
+    ports:
+      - "2379:2379"
+    volumes:
+      - etcd-data:/etcd-data
+  etcdkeeper:
+    image: evildecay/etcdkeeper:latest
+    container_name: etcdkeeper
+    environment:
+      - ETCD_ADDR=http://etcd-node1:2379
+    ports:
+      - "8080:8080"
+    depends_on:
+      - etcd
+volumes:
+  etcd-data:

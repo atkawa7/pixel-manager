@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Distributed Pixel Manager Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+
+    <style>
+        body { padding-top: 20px; background-color: #f8f9fa; }
+        .card { margin-bottom: 20px; }
+        pre { background-color: #f1f1f1; padding: 10px; border-radius: 5px; overflow: auto; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- Hero Section -->
+    <div class="bg-primary text-white p-4 rounded mb-4 shadow-sm d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="h3"><i class="bi bi-server"></i> Distributed Pixel Manager</h1>
+            <p class="mb-0">Manage your Unreal Engine Pixel Streaming instances across the cluster</p>
+        </div>
+        <div>
+            <a href="/managers.html" class="btn btn-light btn-sm me-2">
+                <i class="bi bi-hdd-network"></i> Cluster Managers
+            </a>
+            <a href="/models.html" class="btn btn-light btn-sm me-2">
+                <i class="bi bi-box-seam"></i> Manage Models
+            </a>
+            <a href="/docs" class="btn btn-light btn-sm">
+                <i class="bi bi-file-text"></i> API Docs
+            </a>
+        </div>
+    </div>
+
+    <!-- Start Instance Card -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h5 class="card-title">Start New Instance</h5>
+            <form id="startForm" class="row g-3">
+                <div class="col-md-6">
+                    <label for="model" class="form-label">Model</label>
+                    <select id="model" class="form-select">
+                        <option value="default">Loading models...</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label for="port" class="form-label">Pixel Streaming Port</label>
+                    <input type="number" id="port" value="8888" class="form-control">
+                </div>
+                <div class="col-12">
+                    <button type="button" onclick="startInstance()" class="btn btn-primary mt-2">Start Instance</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Active Instances Card -->
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="card-title">Active Instances</h5>
+                <button onclick="stopAllInstances()" class="btn btn-danger btn-sm me-2">
+                    <i class="bi bi-stop-circle"></i> Stop All
+                </button>
+                <button onclick="loadInstances()" class="btn btn-success btn-sm">
+                    <i class="bi bi-arrow-clockwise"></i> Refresh List
+                </button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Host</th>
+                        <th>Port</th>
+                        <th>PID</th>
+                        <th>Model</th>
+                        <th>Start Time</th>
+                        <th>Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody id="instancesTable"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instance Details Card -->
+    <div id="instanceDetails" class="card shadow-sm" style="display:none;">
+        <div class="card-body">
+            <h5 class="card-title">Instance Details</h5>
+            <pre id="detailsContent"></pre>
+        </div>
+    </div>
+
+</div>
+
+<!-- Bootstrap JS -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.1/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+
+    async function loadModels() {
+        try {
+            const res = await fetch('/models');
+            const data = await res.json();
+            const select = document.getElementById('model');
+            select.innerHTML = '';
+
+            const models = data.models || {};
+            if (Object.keys(models).length === 0) {
+                select.innerHTML = '<option value="default">default</option>';
+                return;
+            }
+
+            // Add default first if it exists
+            if (models.default) {
+                const opt = document.createElement('option');
+                opt.value = 'default';
+                opt.textContent = 'default';
+                opt.selected = true;
+                select.appendChild(opt);
+            }
+
+            // Add other models
+            for (const [name, path] of Object.entries(models)) {
+                if (name === 'default') continue;
+                const opt = document.createElement('option');
+                opt.value = name;
+                opt.textContent = name;
+                select.appendChild(opt);
+            }
+        } catch (err) {
+            console.error('Failed to load models:', err);
+            const select = document.getElementById('model');
+            select.innerHTML = '<option value="default">default</option>';
+        }
+    }
+    async function startInstance() {
+        const model = document.getElementById('model').value;
+        const port = parseInt(document.getElementById('port').value);
+        try {
+            const res = await fetch(`/instances`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ model, pixelStreamingServerPort: port })
+            });
+            const data = await res.json();
+            alert(data.message);
+            loadInstances();
+        } catch (err) {
+            alert('Failed to start instance: ' + err);
+        }
+    }
+
+    async function loadInstances() {
+        try {
+            const res = await fetch(`/instances`);
+            const data = await res.json();
+            const tbody = document.getElementById("instancesTable");
+            tbody.innerHTML = '';
+            data.active.forEach(inst => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${inst.pixelStreamingId}</td>
+                    <td>${inst.host}</td>
+                    <td>${inst.port}</td>
+                    <td>${inst.pid}</td>
+                    <td>${inst.model}</td>
+                    <td>${inst.startTime}</td>
+                    <td>
+                        <button onclick="stopInstance('${inst.pixelStreamingId}')" class="btn btn-sm btn-danger">Stop</button>
+                        <button onclick="showDetails('${inst.pixelStreamingId}')" class="btn btn-sm btn-primary">Details</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (err) {
+            alert('Failed to load instances: ' + err);
+        }
+    }
+
+    async function stopInstance(id) {
+        if (!confirm(`Stop instance ${id}?`)) return;
+        try {
+            const res = await fetch(`/instances/${id}`, { method: 'DELETE' });
+            const data = await res.json();
+            alert(data.message);
+            loadInstances();
+        } catch (err) {
+            alert('Failed to stop instance: ' + err);
+        }
+    }
+
+    async function showDetails(id) {
+        try {
+            const res = await fetch(`/instances/${id}`);
+            const data = await res.json();
+            document.getElementById('instanceDetails').style.display = 'block';
+            document.getElementById('detailsContent').textContent = JSON.stringify(data, null, 2);
+        } catch (err) {
+            alert('Failed to load instance details: ' + err);
+        }
+    }
+
+    async function stopAllInstances() {
+        try {
+            const res = await fetch(`/instances`);
+            const data = await res.json();
+            const count = data.active.length;
+
+            if (count === 0) {
+                alert('No active instances to stop');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to stop ALL ${count} instance(s) across the entire cluster?\n\nThis action cannot be undone.`)) {
+                return;
+            }
+
+            const stopRes = await fetch(`/instances`, { method: 'DELETE' });
+            const stopData = await stopRes.json();
+
+            let message = `Stop All Completed:\n\n`;
+            message += `Total: ${stopData.total}\n`;
+            message += `Stopped: ${stopData.stopped}\n`;
+            message += `Failed: ${stopData.failed}\n`;
+
+            if (stopData.errors && stopData.errors.length > 0) {
+                message += `\nErrors:\n${stopData.errors.join('\n')}`;
+            }
+
+            alert(message);
+            loadInstances();
+        } catch (err) {
+            alert('Failed to stop all instances: ' + err);
+        }
+    }
+
+    window.onload = function() {
+        loadModels();
+        loadInstances();
+    };
+</script>
+
+</body>
+</html>

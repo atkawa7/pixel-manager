@@ -5,6 +5,7 @@ go 1.24.0
 require (
 	github.com/google/uuid v1.3.1
 	go.etcd.io/etcd/client/v3 v3.5.16
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (

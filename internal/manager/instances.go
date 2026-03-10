@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"os/exec"
+	"pixel-manager/internal/signal"
 	"runtime"
 	"strconv"
 	"strings"
@@ -279,8 +280,8 @@ func (m *Manager) waitForExit(id string, cmd *exec.Cmd) {
 	m.mu.Unlock()
 }
 
-func (m *Manager) allocateIdleInstance(ctx context.Context, currentStreamers []Streamer, userID string, availableManagerHosts []string) (*Instance, error) {
-	streamerMap := map[string]Streamer{}
+func (m *Manager) allocateIdleInstance(ctx context.Context, currentStreamers []signal.Streamer, userID string, availableManagerHosts []string) (*Instance, error) {
+	streamerMap := map[string]signal.Streamer{}
 	for _, s := range currentStreamers {
 		streamerMap[s.StreamerID] = s
 	}

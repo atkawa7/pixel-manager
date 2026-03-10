@@ -36,8 +36,17 @@ func New(cfg config.Config, mgr *manager.Manager) *Server {
 	mux.HandleFunc("/openapi.json", s.handleOpenAPI)
 
 	publicDir := filepath.Join(".", "public")
+
+	fileServer := http.FileServer(http.Dir(publicDir))
+
 	if _, err := os.Stat(publicDir); err == nil {
-		mux.Handle("/", http.FileServer(http.Dir(publicDir)))
+		mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == "/" {
+				http.Redirect(w, r, "/portal.html", http.StatusFound)
+				return
+			}
+			fileServer.ServeHTTP(w, r)
+		})
 	}
 
 	s.server = &http.Server{
