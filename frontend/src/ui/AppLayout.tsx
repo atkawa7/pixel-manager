@@ -1,4 +1,3 @@
-import React from "react";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
@@ -14,14 +13,21 @@ import {
   Toolbar,
   Typography,
 } from "@mui/material";
+import type { ReactNode } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 
 const drawerWidth = 260;
 
-const navItems = [
-  { label: "Portal", path: "/portal.html", icon: <DashboardOutlinedIcon /> },
-  { label: "Managers", path: "/managers.html", icon: <HubOutlinedIcon /> },
-  { label: "Models", path: "/models.html", icon: <Inventory2OutlinedIcon /> },
+interface NavItem {
+  label: string;
+  path: string;
+  icon: ReactNode;
+}
+
+const navItems: NavItem[] = [
+  { label: "Portal", path: "/portal", icon: <DashboardOutlinedIcon /> },
+  { label: "Managers", path: "/managers", icon: <HubOutlinedIcon /> },
+  { label: "Models", path: "/models", icon: <Inventory2OutlinedIcon /> },
 ];
 
 export function AppLayout() {

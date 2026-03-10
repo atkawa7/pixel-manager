@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
@@ -19,16 +19,27 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import type { AlertColor } from "@mui/material";
 import { deleteModel, getModels, setModel } from "../api";
 
+interface NoticeState {
+  open: boolean;
+  text: string;
+  type: AlertColor;
+}
+
 export function ModelsPage() {
-  const [models, setModels] = useState({});
+  const [models, setModels] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [exePath, setExePath] = useState("");
   const [modelToDelete, setModelToDelete] = useState("");
-  const [notice, setNotice] = useState({ open: false, text: "", type: "success" });
+  const [notice, setNotice] = useState<NoticeState>({
+    open: false,
+    text: "",
+    type: "success",
+  });
 
-  function notify(text, type = "success") {
+  function notify(text: string, type: AlertColor = "success") {
     setNotice({ open: true, text, type });
   }
 
@@ -37,15 +48,15 @@ export function ModelsPage() {
       const data = await getModels();
       setModels(data.models || {});
     } catch (error) {
-      notify(error.message, "error");
+      notify((error as Error).message, "error");
     }
   }
 
   useEffect(() => {
-    loadModels();
+    void loadModels();
   }, []);
 
-  async function onSaveModel(event) {
+  async function onSaveModel(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name.trim() || !exePath.trim()) {
       notify("Model name and path are required", "error");
@@ -58,7 +69,7 @@ export function ModelsPage() {
       setName("");
       setExePath("");
     } catch (error) {
-      notify(error.message, "error");
+      notify((error as Error).message, "error");
     }
   }
 
@@ -71,7 +82,7 @@ export function ModelsPage() {
       setModels(data.models || {});
       notify(data.message || "Model deleted");
     } catch (error) {
-      notify(error.message, "error");
+      notify((error as Error).message, "error");
     } finally {
       setModelToDelete("");
     }
@@ -140,7 +151,7 @@ export function ModelsPage() {
         <CardContent>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
             <Typography variant="h6">Available Models</Typography>
-            <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={loadModels}>
+            <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={() => void loadModels()}>
               Refresh
             </Button>
           </Box>
@@ -159,7 +170,14 @@ export function ModelsPage() {
                               <Typography
                                 component="span"
                                 variant="caption"
-                                sx={{ ml: 1, px: 1, py: 0.4, bgcolor: "primary.main", color: "#fff", borderRadius: 1 }}
+                                sx={{
+                                  ml: 1,
+                                  px: 1,
+                                  py: 0.4,
+                                  bgcolor: "primary.main",
+                                  color: "#fff",
+                                  borderRadius: 1,
+                                }}
                               >
                                 Default
                               </Typography>
@@ -219,7 +237,7 @@ export function ModelsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setModelToDelete("")}>Cancel</Button>
-          <Button color="error" variant="contained" onClick={onConfirmDelete}>
+          <Button color="error" variant="contained" onClick={() => void onConfirmDelete()}>
             Delete
           </Button>
         </DialogActions>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import OpenInNewRoundedIcon from "@mui/icons-material/OpenInNewRounded";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
@@ -24,8 +24,21 @@ import {
   Typography,
 } from "@mui/material";
 import { getInstances, getManagers, getModels } from "../api";
+import type { Instance } from "../types";
 
-async function checkManagerHealth(url) {
+interface ManagerNode {
+  host: string;
+  url: string;
+}
+
+interface DetailsState {
+  manager: ManagerNode;
+  maxInstances: number;
+  models: Record<string, string>;
+  hostInstances: Instance[];
+}
+
+async function checkManagerHealth(url: string): Promise<boolean> {
   try {
     const response = await fetch(`${url}/instances`, { signal: AbortSignal.timeout(3000) });
     return response.ok;
@@ -37,10 +50,10 @@ async function checkManagerHealth(url) {
 export function ManagersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [managers, setManagers] = useState([]);
-  const [instances, setInstances] = useState([]);
-  const [healthMap, setHealthMap] = useState({});
-  const [details, setDetails] = useState(null);
+  const [managers, setManagers] = useState<ManagerNode[]>([]);
+  const [instances, setInstances] = useState<Instance[]>([]);
+  const [healthMap, setHealthMap] = useState<Record<string, boolean>>({});
+  const [details, setDetails] = useState<DetailsState | null>(null);
 
   async function loadManagers() {
     setError("");
@@ -57,31 +70,35 @@ export function ManagersPage() {
           healthy: await checkManagerHealth(manager.url),
         })),
       );
-      const nextHealth = {};
+      const nextHealth: Record<string, boolean> = {};
       for (const item of checks) {
         nextHealth[item.host] = item.healthy;
       }
       setHealthMap(nextHealth);
     } catch (loadError) {
-      setError(loadError.message);
+      setError((loadError as Error).message);
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadManagers();
-    const interval = setInterval(loadManagers, 10000);
+    void loadManagers();
+    const interval = setInterval(() => {
+      void loadManagers();
+    }, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  async function openDetails(manager) {
+  async function openDetails(manager: ManagerNode) {
     try {
       const [instancesData, modelsData] = await Promise.all([
         getInstances(manager.url),
         getModels(manager.url),
       ]);
-      const hostInstances = (instancesData.active || []).filter((item) => item.host === manager.host);
+      const hostInstances = (instancesData.active || []).filter(
+        (item) => item.host === manager.host,
+      );
       setDetails({
         manager,
         maxInstances: instancesData.maxInstances,
@@ -89,7 +106,7 @@ export function ManagersPage() {
         hostInstances,
       });
     } catch (detailError) {
-      setError(detailError.message);
+      setError((detailError as Error).message);
     }
   }
 
@@ -148,7 +165,7 @@ export function ManagersPage() {
         <CardContent>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
             <Typography variant="h6">Active Managers</Typography>
-            <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={loadManagers}>
+            <Button variant="outlined" startIcon={<RefreshRoundedIcon />} onClick={() => void loadManagers()}>
               Refresh
             </Button>
           </Box>
@@ -181,7 +198,11 @@ export function ManagersPage() {
                       </Typography>
                     </CardContent>
                     <CardActions sx={{ px: 2, pb: 2 }}>
-                      <Button size="small" startIcon={<InfoOutlinedIcon />} onClick={() => openDetails(manager)}>
+                      <Button
+                        size="small"
+                        startIcon={<InfoOutlinedIcon />}
+                        onClick={() => void openDetails(manager)}
+                      >
                         Details
                       </Button>
                       {!isCurrent && (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import StopCircleRoundedIcon from "@mui/icons-material/StopCircleRounded";
@@ -26,6 +26,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import type { AlertColor } from "@mui/material";
 import {
   getInstanceDetails,
   getInstances,
@@ -34,14 +35,25 @@ import {
   stopAllInstances,
   stopInstance,
 } from "../api";
+import type { Instance } from "../types";
+
+interface NoticeState {
+  open: boolean;
+  type: AlertColor;
+  text: string;
+}
 
 export function PortalPage() {
-  const [models, setModels] = useState({});
+  const [models, setModels] = useState<Record<string, string>>({});
   const [selectedModel, setSelectedModel] = useState("default");
-  const [port, setPort] = useState(8888);
-  const [instances, setInstances] = useState([]);
-  const [details, setDetails] = useState(null);
-  const [notice, setNotice] = useState({ open: false, type: "success", text: "" });
+  const [port, setPort] = useState<number>(8888);
+  const [instances, setInstances] = useState<Instance[]>([]);
+  const [details, setDetails] = useState<unknown>(null);
+  const [notice, setNotice] = useState<NoticeState>({
+    open: false,
+    type: "success",
+    text: "",
+  });
 
   const modelNames = Object.keys(models);
 
@@ -59,12 +71,12 @@ export function PortalPage() {
     setInstances(data.active || []);
   }
 
-  function showMessage(text, type = "success") {
+  function showMessage(text: string, type: AlertColor = "success") {
     setNotice({ open: true, text, type });
   }
 
   useEffect(() => {
-    Promise.all([loadModels(), loadInstances()]).catch((error) => {
+    void Promise.all([loadModels(), loadInstances()]).catch((error: Error) => {
       showMessage(error.message, "error");
     });
   }, []);
@@ -78,11 +90,11 @@ export function PortalPage() {
       showMessage(data.message || "Instance started");
       await loadInstances();
     } catch (error) {
-      showMessage(error.message, "error");
+      showMessage((error as Error).message, "error");
     }
   }
 
-  async function onStopInstance(id) {
+  async function onStopInstance(id: string) {
     if (!window.confirm(`Stop instance ${id}?`)) {
       return;
     }
@@ -91,16 +103,16 @@ export function PortalPage() {
       showMessage(data.message || "Instance stopped");
       await loadInstances();
     } catch (error) {
-      showMessage(error.message, "error");
+      showMessage((error as Error).message, "error");
     }
   }
 
-  async function onShowDetails(id) {
+  async function onShowDetails(id: string) {
     try {
       const data = await getInstanceDetails(id);
       setDetails(data);
     } catch (error) {
-      showMessage(error.message, "error");
+      showMessage((error as Error).message, "error");
     }
   }
 
@@ -119,7 +131,7 @@ export function PortalPage() {
       );
       await loadInstances();
     } catch (error) {
-      showMessage(error.message, "error");
+      showMessage((error as Error).message, "error");
     }
   }
 
@@ -166,7 +178,7 @@ export function PortalPage() {
                 type="number"
                 fullWidth
                 value={port}
-                onChange={(event) => setPort(event.target.value)}
+                onChange={(event) => setPort(Number(event.target.value) || 0)}
               />
             </Grid>
             <Grid size={{ xs: 12, md: 2 }}>

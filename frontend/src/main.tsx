@@ -1,6 +1,6 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { CssBaseline, ThemeProvider, createTheme } from "@mui/material";
 import { AppLayout } from "./ui/AppLayout";
 import { PortalPage } from "./pages/PortalPage";
@@ -34,21 +34,27 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/portal.html" replace />} />
-            <Route path="/portal.html" element={<PortalPage />} />
-            <Route path="/managers.html" element={<ManagersPage />} />
-            <Route path="/models.html" element={<ModelsPage />} />
+            <Route path="/" element={<Navigate to="/portal" replace />} />
+            <Route path="/portal" element={<PortalPage />} />
+            <Route path="/managers" element={<ManagersPage />} />
+            <Route path="/models" element={<ModelsPage />} />
+            <Route path="*" element={<Navigate to="/portal" replace />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </ThemeProvider>
   );
 }
 
-createRoot(document.getElementById("root")).render(
+const rootElement = document.getElementById("root");
+if (!rootElement) {
+  throw new Error("Root element not found");
+}
+
+createRoot(rootElement).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>,
