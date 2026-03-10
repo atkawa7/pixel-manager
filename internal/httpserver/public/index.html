@@ -1,13 +1,124 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Pixel Manager</title>
-    <script type="module" crossorigin src="/assets/index-B5iOnagi.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-BtHPOveY.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pixel Manager</title>
+  <style>
+    :root {
+      --bg: #f3f7f8;
+      --surface: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #dbe3e8;
+      --primary: #155e63;
+      --primary-weak: #e2f0f1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100%;
+      font-family: "IBM Plex Sans", "Segoe UI", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 720px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      overflow: hidden;
+    }
+
+    .header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--primary-weak);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      flex-shrink: 0;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    .message {
+      margin: 0 0 12px;
+      font-size: 15px;
+      line-height: 1.5;
+      color: var(--text);
+    }
+
+    .hint {
+      margin: 0;
+      font-size: 14px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    code {
+      font-family: "JetBrains Mono", "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 13px;
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 2px 6px;
+    }
+
+    @media (max-width: 600px) {
+      body {
+        padding: 14px;
+      }
+
+      .header,
+      .content {
+        padding: 14px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root" class="shell" role="status" aria-live="polite">
+    <div class="header">
+      <span class="dot" aria-hidden="true"></span>
+      <h1 class="title">Pixel Manager</h1>
+    </div>
+    <div class="content">
+      <p class="message">Frontend bundle not found.</p>
+      <p class="hint">Build the frontend for production so compiled assets are embedded and served from <code>internal/httpserver/public</code>.</p>
+    </div>
+  </div>
+</body>
 </html>

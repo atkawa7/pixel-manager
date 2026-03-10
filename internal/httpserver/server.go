@@ -6,8 +6,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"mime"
 	"net/http"
-	"net/url"
 	"path/filepath"
 	"pixel-manager/internal/config"
 	"pixel-manager/internal/manager"
@@ -392,7 +392,7 @@ func spaHandler(staticFS fs.FS) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		cleanPath := strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")
 		if cleanPath == "." || cleanPath == "" {
-			serveFileFromFS(fileServer, r, w, "/index.html")
+			serveFileFromFS(staticFS, w, "/index.html")
 			return
 		}
 
@@ -402,7 +402,7 @@ func spaHandler(staticFS fs.FS) http.Handler {
 		}
 
 		if filepath.Ext(cleanPath) == "" {
-			serveFileFromFS(fileServer, r, w, "/index.html")
+			serveFileFromFS(staticFS, w, "/index.html")
 			return
 		}
 
@@ -410,10 +410,18 @@ func spaHandler(staticFS fs.FS) http.Handler {
 	})
 }
 
-func serveFileFromFS(fileServer http.Handler, r *http.Request, w http.ResponseWriter, path string) {
-	cloned := r.Clone(r.Context())
-	cloned.URL = new(url.URL)
-	*cloned.URL = *r.URL
-	cloned.URL.Path = path
-	fileServer.ServeHTTP(w, cloned)
+func serveFileFromFS(staticFS fs.FS, w http.ResponseWriter, path string) {
+	normalized := strings.TrimPrefix(path, "/")
+	data, err := fs.ReadFile(staticFS, normalized)
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	if ct := mime.TypeByExtension(filepath.Ext(normalized)); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+	_, _ = w.Write(data)
 }
