@@ -85,6 +85,21 @@ In dev mode, frontend API base defaults to `http://localhost:4000`.
 
 Build frontend assets into `internal/httpserver/public`, then compile Go binary.
 
+### macOS / Linux (Bash)
+
+```bash
+chmod +x scripts/build-prod.sh
+./scripts/build-prod.sh
+```
+
+### Windows (PowerShell)
+
+```powershell
+.\scripts\build-prod.ps1
+```
+
+### Manual
+
 ```bash
 cd frontend
 npm install
