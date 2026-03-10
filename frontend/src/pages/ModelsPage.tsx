@@ -91,7 +91,7 @@ export function ModelsPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Card elevation={0} sx={{ background: "linear-gradient(120deg, #0f766e, #0f9a8f)", color: "#fff" }}>
+      <Card elevation={0} sx={{ background: "#0f766e", color: "#fff" }}>
         <CardContent>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Models Management

@@ -117,7 +117,7 @@ export function ManagersPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Card elevation={0} sx={{ background: "linear-gradient(120deg, #b45309, #d97706)", color: "#fff" }}>
+      <Card elevation={0} sx={{ background: "#b45309", color: "#fff" }}>
         <CardContent>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Cluster Managers

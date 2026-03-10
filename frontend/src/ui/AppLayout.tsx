@@ -46,8 +46,7 @@ export function AppLayout() {
           "& .MuiDrawer-paper": {
             width: drawerWidth,
             boxSizing: "border-box",
-            background:
-              "linear-gradient(180deg, rgba(20,86,90,0.97) 0%, rgba(12,53,57,0.98) 100%)",
+            background: "#155e63",
             color: "#f8fbfc",
             border: "none",
           },
@@ -113,8 +112,7 @@ export function AppLayout() {
           flexGrow: 1,
           px: { xs: 2, sm: 3, md: 4 },
           py: 3,
-          background:
-            "radial-gradient(circle at 20% 0%, rgba(21,94,99,0.08), transparent 40%), #f3f7f8",
+          background: "#f3f7f8",
         }}
       >
         <Outlet />

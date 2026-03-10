@@ -42,7 +42,7 @@ export function SettingsPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Card elevation={0} sx={{ background: "linear-gradient(120deg, #334155, #1e293b)", color: "#fff" }}>
+      <Card elevation={0} sx={{ background: "#334155", color: "#fff" }}>
         <CardContent>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Settings

@@ -222,7 +222,7 @@ export function PortalPage() {
 
   return (
     <Stack spacing={2.5}>
-      <Card elevation={0} sx={{ background: "linear-gradient(120deg, #155e63, #1f7a82)", color: "#fff" }}>
+      <Card elevation={0} sx={{ background: "#155e63", color: "#fff" }}>
         <CardContent>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
             Distributed Pixel Manager
