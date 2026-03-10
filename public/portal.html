@@ -148,7 +148,8 @@
                 body: JSON.stringify({ model, pixelStreamingServerPort: port })
             });
             const data = await res.json();
-            alert(data.message);
+            const message = data.message || data.error;
+            alert(message);
             loadInstances();
         } catch (err) {
             alert('Failed to start instance: ' + err);
