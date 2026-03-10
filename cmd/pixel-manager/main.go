@@ -18,12 +18,16 @@ import (
 func main() {
 	cfg := config.Load()
 
-	etcd, err := clientv3.New(clientv3.Config{
+	etcdCfg := clientv3.Config{
 		Endpoints:   []string{cfg.EtcdHost},
 		DialTimeout: time.Duration(cfg.EtcdDialTimeoutMS) * time.Millisecond,
-		Username:    cfg.EtcdUser,
-		Password:    cfg.EtcdPassword,
-	})
+	}
+	if cfg.EtcdEnableAuth {
+		etcdCfg.Username = cfg.EtcdUser
+		etcdCfg.Password = cfg.EtcdPassword
+	}
+
+	etcd, err := clientv3.New(etcdCfg)
 	if err != nil {
 		log.Fatalf("failed to connect to etcd: %v", err)
 	}

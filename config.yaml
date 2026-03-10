@@ -1,6 +1,10 @@
+manager:
+  subnet_prefixes: 172.20.,10.0.,192.168.
+
 etcd:
   host: 127.0.0.1
   port: 2379
+  enable_auth: false
   user: root
   password: password
 pixel:

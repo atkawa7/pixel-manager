@@ -17,17 +17,43 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 )
 
-func (m *Manager) ClusterManagers(ctx context.Context) (map[string]string, error) {
-	return m.getClusterManagers(ctx)
+func (m *Manager) ClusterManagers(ctx context.Context) ([]ClusterManagerInfo, error) {
+	return m.getClusterManagerInfos(ctx)
 }
-func (m *Manager) getClusterManagers(ctx context.Context) (map[string]string, error) {
+
+func (m *Manager) getClusterManagerInfos(ctx context.Context) ([]ClusterManagerInfo, error) {
 	resp, err := m.etcd.Get(ctx, "/managers/", clientv3.WithPrefix())
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]string{}
+
+	out := make([]ClusterManagerInfo, 0, len(resp.Kvs))
 	for _, kv := range resp.Kvs {
-		out[string(kv.Key)] = string(kv.Value)
+		key := string(kv.Key)
+		host := strings.TrimPrefix(key, "/managers/")
+		reg := parseManagerRegistration(kv.Value, host)
+		out = append(out, ClusterManagerInfo{
+			Key:  key,
+			Host: host,
+			Name: reg.Name,
+			URL:  reg.URL,
+		})
+	}
+	return out, nil
+}
+
+func (m *Manager) getClusterManagers(ctx context.Context) (map[string]string, error) {
+	infos, err := m.getClusterManagerInfos(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	out := map[string]string{}
+	for _, info := range infos {
+		if strings.TrimSpace(info.URL) == "" {
+			continue
+		}
+		out[info.Key] = info.URL
 	}
 	return out, nil
 }

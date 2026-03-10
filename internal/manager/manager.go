@@ -3,6 +3,7 @@ package manager
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -30,6 +31,7 @@ type Manager struct {
 	cfg         config.Config
 	etcd        *clientv3.Client
 	signal      signal.Client
+	managerName string
 	managerHost string
 	leaseID     clientv3.LeaseID
 
@@ -40,13 +42,32 @@ type Manager struct {
 }
 
 func New(cfg config.Config, etcd *clientv3.Client, signalClient signal.Client) *Manager {
+	managerHost := detectManagerHost(cfg.ManagerSubnetPrefixes)
+	managerName := detectManagerName()
+	if managerName == "" {
+		managerName = managerHost
+	}
+
 	return &Manager{
 		cfg:         cfg,
 		etcd:        etcd,
 		signal:      signalClient,
-		managerHost: detectManagerHost(),
+		managerName: managerName,
+		managerHost: managerHost,
 		processes:   map[string]*exec.Cmd{},
 	}
+}
+
+type ManagerRegistration struct {
+	Name string `json:"name"`
+	URL  string `json:"url"`
+}
+
+type ClusterManagerInfo struct {
+	Key  string `json:"key"`
+	Host string `json:"host"`
+	Name string `json:"name"`
+	URL  string `json:"url"`
 }
 
 func (m *Manager) appendLogLine(id, stream, line string) {
@@ -133,6 +154,10 @@ func (m *Manager) ManagerHost() string {
 	return m.managerHost
 }
 
+func (m *Manager) ManagerName() string {
+	return m.managerName
+}
+
 func (m *Manager) Init(ctx context.Context) error {
 	if err := m.registerManager(ctx); err != nil {
 		return err
@@ -149,14 +174,21 @@ func (m *Manager) Init(ctx context.Context) error {
 	return nil
 }
 
-func detectManagerHost() string {
+func detectManagerHost(subnetPrefixesCSV string) string {
 	ifaces, err := net.Interfaces()
 	if err != nil {
 		h, _ := os.Hostname()
 		return h
 	}
 
+	preferredPrefixes := parseSubnetPrefixes(subnetPrefixesCSV)
+	var firstNonLoopbackIPv4 string
+
 	for _, iface := range ifaces {
+		if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+
 		addrs, _ := iface.Addrs()
 		for _, addr := range addrs {
 			var ip net.IP
@@ -173,14 +205,102 @@ func detectManagerHost() string {
 			if ip == nil {
 				continue
 			}
-			if strings.HasPrefix(ip.String(), "172.20.") {
-				return ip.String()
+
+			ipStr := ip.String()
+			if firstNonLoopbackIPv4 == "" {
+				firstNonLoopbackIPv4 = ipStr
+			}
+			if hasAnyPrefix(ipStr, preferredPrefixes) {
+				return ipStr
+			}
+			if isPrivateIPv4(ip) {
+				return ipStr
 			}
 		}
 	}
 
+	if firstNonLoopbackIPv4 != "" {
+		return firstNonLoopbackIPv4
+	}
+
 	h, _ := os.Hostname()
 	return h
+}
+
+func parseSubnetPrefixes(raw string) []string {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return nil
+	}
+
+	parts := strings.Split(raw, ",")
+	out := make([]string, 0, len(parts))
+	for _, part := range parts {
+		p := strings.TrimSpace(part)
+		if p == "" {
+			continue
+		}
+		out = append(out, p)
+	}
+	return out
+}
+
+func detectManagerName() string {
+	name, err := os.Hostname()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(name)
+}
+
+func parseManagerRegistration(value []byte, host string) ManagerRegistration {
+	raw := strings.TrimSpace(string(value))
+	if raw == "" {
+		return ManagerRegistration{Name: host, URL: ""}
+	}
+
+	if strings.HasPrefix(raw, "{") {
+		var parsed ManagerRegistration
+		if err := json.Unmarshal(value, &parsed); err == nil {
+			if strings.TrimSpace(parsed.Name) == "" {
+				parsed.Name = host
+			}
+			return parsed
+		}
+	}
+
+	return ManagerRegistration{
+		Name: host,
+		URL:  raw,
+	}
+}
+
+func hasAnyPrefix(v string, prefixes []string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(v, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func isPrivateIPv4(ip net.IP) bool {
+	v4 := ip.To4()
+	if v4 == nil {
+		return false
+	}
+
+	if v4[0] == 10 {
+		return true
+	}
+	if v4[0] == 172 && v4[1] >= 16 && v4[1] <= 31 {
+		return true
+	}
+	if v4[0] == 192 && v4[1] == 168 {
+		return true
+	}
+
+	return false
 }
 
 func (m *Manager) registerManager(ctx context.Context) error {
@@ -191,9 +311,16 @@ func (m *Manager) registerManager(ctx context.Context) error {
 	m.leaseID = leaseResp.ID
 
 	key := "/managers/" + m.managerHost
-	val := fmt.Sprintf("http://%s:%d", m.managerHost, m.cfg.ManagerPort)
+	registration := ManagerRegistration{
+		Name: m.managerName,
+		URL:  fmt.Sprintf("http://%s:%d", m.managerHost, m.cfg.ManagerPort),
+	}
+	payload, err := json.Marshal(registration)
+	if err != nil {
+		return err
+	}
 
-	if _, err := m.etcd.Put(ctx, key, val, clientv3.WithLease(m.leaseID)); err != nil {
+	if _, err := m.etcd.Put(ctx, key, string(payload), clientv3.WithLease(m.leaseID)); err != nil {
 		return err
 	}
 

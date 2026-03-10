@@ -28,6 +28,7 @@ import type { Instance } from "../types";
 
 interface ManagerNode {
   host: string;
+  name: string;
   url: string;
 }
 
@@ -182,7 +183,7 @@ export function ManagersPage() {
                   <Card variant="outlined" sx={{ borderWidth: isCurrent ? 2 : 1 }}>
                     <CardContent>
                       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5 }}>
-                        <Typography variant="h6">{manager.host}</Typography>
+                        <Typography variant="h6">{manager.name || manager.host}</Typography>
                         <Chip
                           size="small"
                           label={healthy ? "Online" : "Offline"}
@@ -193,6 +194,9 @@ export function ManagersPage() {
                         {isCurrent && <Chip size="small" color="primary" label="Current Node" />}
                         <Chip size="small" label={`${hostInstances} instance(s)`} />
                       </Stack>
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                        Host: {manager.host}
+                      </Typography>
                       <Typography variant="body2" color="text.secondary" sx={{ wordBreak: "break-all" }}>
                         {manager.url}
                       </Typography>
@@ -239,9 +243,14 @@ export function ManagersPage() {
               <Card variant="outlined">
                 <CardContent>
                   <Typography variant="subtitle2" color="text.secondary">
-                    Host
+                    Manager
                   </Typography>
-                  <Typography variant="h6">{details.manager.host}</Typography>
+                  <Typography variant="h6">
+                    {details.manager.name || details.manager.host}
+                  </Typography>
+                  <Typography variant="body2">
+                    Host: {details.manager.host}
+                  </Typography>
                   <Typography variant="body2" sx={{ mt: 1 }}>
                     URL: {details.manager.url}
                   </Typography>

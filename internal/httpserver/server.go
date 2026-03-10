@@ -283,10 +283,11 @@ func (s *Server) handleManagers(w http.ResponseWriter, r *http.Request) {
 	}
 
 	formatted := make([]map[string]string, 0, len(managers))
-	for key, url := range managers {
+	for _, item := range managers {
 		formatted = append(formatted, map[string]string{
-			"host": strings.TrimPrefix(key, "/managers/"),
-			"url":  url,
+			"host": item.Host,
+			"name": item.Name,
+			"url":  item.URL,
 		})
 	}
 

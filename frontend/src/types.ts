@@ -17,7 +17,7 @@ export interface ModelsResponse {
 
 export interface ManagersResponse {
   count: number;
-  managers: Array<{ host: string; url: string }>;
+  managers: Array<{ host: string; name: string; url: string }>;
 }
 
 export interface InstancesResponse {

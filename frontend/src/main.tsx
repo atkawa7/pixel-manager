@@ -38,12 +38,12 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Navigate to="/portal" replace />} />
+            <Route path="/" element={<PortalPage />} />
             <Route path="/portal" element={<PortalPage />} />
             <Route path="/managers" element={<ManagersPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
-            <Route path="*" element={<Navigate to="/portal" replace />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
       </BrowserRouter>

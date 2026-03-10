@@ -12,19 +12,21 @@ import (
 )
 
 type Config struct {
-	ManagerPort        int    `yaml:"manager_port"`
-	PixelStreamingIP   string `yaml:"pixel_streaming_ip"`
-	DefaultExe         string `yaml:"pixel_exe_path"`
-	MaxInstances       int    `yaml:"max_instances"`
-	EtcdHost           string `yaml:"etcd_host"`
-	EtcdUser           string `yaml:"etcd_user"`
-	EtcdPassword       string `yaml:"etcd_password"`
-	EtcdDialTimeoutMS  int    `yaml:"etcd_dial_timeout"`
-	EtcdRequestTimeout int    `yaml:"etcd_request_timeout"`
-	DefaultResX        int    `yaml:"default_res_x"`
-	DefaultResY        int    `yaml:"default_res_y"`
-	SignalServerURL    string `yaml:"signal_server_url"`
-	StartupInstances   int    `yaml:"startup_instances"`
+	ManagerPort           int    `yaml:"manager_port"`
+	ManagerSubnetPrefixes string `yaml:"manager_subnet_prefixes"`
+	PixelStreamingIP      string `yaml:"pixel_streaming_ip"`
+	DefaultExe            string `yaml:"pixel_exe_path"`
+	MaxInstances          int    `yaml:"max_instances"`
+	EtcdHost              string `yaml:"etcd_host"`
+	EtcdEnableAuth        bool   `yaml:"etcd_enable_auth"`
+	EtcdUser              string `yaml:"etcd_user"`
+	EtcdPassword          string `yaml:"etcd_password"`
+	EtcdDialTimeoutMS     int    `yaml:"etcd_dial_timeout"`
+	EtcdRequestTimeout    int    `yaml:"etcd_request_timeout"`
+	DefaultResX           int    `yaml:"default_res_x"`
+	DefaultResY           int    `yaml:"default_res_y"`
+	SignalServerURL       string `yaml:"signal_server_url"`
+	StartupInstances      int    `yaml:"startup_instances"`
 }
 
 func env(key, def string) string {
@@ -47,21 +49,45 @@ func envInt(key string, def int) int {
 	return n
 }
 
+func parseBool(v string) (bool, bool) {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "1", "true", "yes", "on":
+		return true, true
+	case "0", "false", "no", "off":
+		return false, true
+	default:
+		return false, false
+	}
+}
+
+func envBool(key string, def bool) bool {
+	raw := strings.TrimSpace(os.Getenv(key))
+	if raw == "" {
+		return def
+	}
+	if b, ok := parseBool(raw); ok {
+		return b
+	}
+	return def
+}
+
 func defaultConfig() Config {
 	return Config{
-		ManagerPort:        4000,
-		PixelStreamingIP:   "172.20.0.4",
-		DefaultExe:         `C:\pixel-manager\Windows\ToyotaHiluxConvers\Binaries\Win64\ToyotaHiluxConvers.exe`,
-		MaxInstances:       3,
-		EtcdHost:           "http://172.20.0.4:2379",
-		EtcdUser:           "root",
-		EtcdPassword:       "yourpassword",
-		EtcdDialTimeoutMS:  5000,
-		EtcdRequestTimeout: 10000,
-		DefaultResX:        1280,
-		DefaultResY:        720,
-		SignalServerURL:    "http://172.20.0.4",
-		StartupInstances:   3,
+		ManagerPort:           4000,
+		ManagerSubnetPrefixes: "",
+		PixelStreamingIP:      "172.20.0.4",
+		DefaultExe:            `C:\pixel-manager\Windows\ToyotaHiluxConvers\Binaries\Win64\ToyotaHiluxConvers.exe`,
+		MaxInstances:          3,
+		EtcdHost:              "http://172.20.0.4:2379",
+		EtcdEnableAuth:        false,
+		EtcdUser:              "root",
+		EtcdPassword:          "yourpassword",
+		EtcdDialTimeoutMS:     5000,
+		EtcdRequestTimeout:    10000,
+		DefaultResX:           1280,
+		DefaultResY:           720,
+		SignalServerURL:       "http://172.20.0.4",
+		StartupInstances:      3,
 	}
 }
 
@@ -137,6 +163,17 @@ func yamlInt(values map[string]any, def int, keys ...string) int {
 	return n
 }
 
+func yamlBool(values map[string]any, def bool, keys ...string) bool {
+	raw, ok := yamlValue(values, keys...)
+	if !ok {
+		return def
+	}
+	if b, ok := parseBool(fmt.Sprint(raw)); ok {
+		return b
+	}
+	return def
+}
+
 func configPath() string {
 	path := strings.TrimSpace(os.Getenv("CONFIG_FILE"))
 	if path != "" {
@@ -162,19 +199,21 @@ func maskSecret(v string) string {
 
 func (c Config) SafeView() map[string]any {
 	return map[string]any{
-		"managerPort":        c.ManagerPort,
-		"pixelStreamingIP":   c.PixelStreamingIP,
-		"defaultExe":         c.DefaultExe,
-		"maxInstances":       c.MaxInstances,
-		"etcdHost":           c.EtcdHost,
-		"etcdUser":           c.EtcdUser,
-		"etcdPassword":       maskSecret(c.EtcdPassword),
-		"etcdDialTimeoutMS":  c.EtcdDialTimeoutMS,
-		"etcdRequestTimeout": c.EtcdRequestTimeout,
-		"defaultResX":        c.DefaultResX,
-		"defaultResY":        c.DefaultResY,
-		"signalServerURL":    c.SignalServerURL,
-		"startupInstances":   c.StartupInstances,
+		"managerPort":           c.ManagerPort,
+		"managerSubnetPrefixes": c.ManagerSubnetPrefixes,
+		"pixelStreamingIP":      c.PixelStreamingIP,
+		"defaultExe":            c.DefaultExe,
+		"maxInstances":          c.MaxInstances,
+		"etcdHost":              c.EtcdHost,
+		"etcdEnableAuth":        c.EtcdEnableAuth,
+		"etcdUser":              c.EtcdUser,
+		"etcdPassword":          maskSecret(c.EtcdPassword),
+		"etcdDialTimeoutMS":     c.EtcdDialTimeoutMS,
+		"etcdRequestTimeout":    c.EtcdRequestTimeout,
+		"defaultResX":           c.DefaultResX,
+		"defaultResY":           c.DefaultResY,
+		"signalServerURL":       c.SignalServerURL,
+		"startupInstances":      c.StartupInstances,
 	}
 }
 
@@ -191,9 +230,11 @@ func Load() Config {
 			flattenYAML("", parsed, yamlValues)
 
 			cfg.ManagerPort = yamlInt(yamlValues, cfg.ManagerPort, "MANAGER_PORT", "manager.port", "managerPort")
+			cfg.ManagerSubnetPrefixes = yamlString(yamlValues, cfg.ManagerSubnetPrefixes, "MANAGER_SUBNET_PREFIX", "MANAGER_SUBNET_PREFIXES", "manager.subnet_prefix", "manager.subnet_prefixes", "managerSubnetPrefix", "managerSubnetPrefixes")
 			cfg.PixelStreamingIP = yamlString(yamlValues, cfg.PixelStreamingIP, "PIXEL_STREAMING_IP", "pixel.streaming.ip", "pixelStreaming.ip")
 			cfg.DefaultExe = yamlString(yamlValues, cfg.DefaultExe, "PIXEL_EXE_PATH", "pixel.exe.path", "pixelExePath")
 			cfg.MaxInstances = yamlInt(yamlValues, cfg.MaxInstances, "MAX_INSTANCES", "max.instances", "maxInstances")
+			cfg.EtcdEnableAuth = yamlBool(yamlValues, cfg.EtcdEnableAuth, "ETCD_ENABLE_AUTH", "etcd.enable_auth", "etcd.enableAuth", "etcdEnableAuth")
 			cfg.EtcdUser = yamlString(yamlValues, cfg.EtcdUser, "ETCD_USER", "etcd.user")
 			cfg.EtcdPassword = yamlString(yamlValues, cfg.EtcdPassword, "ETCD_PASSWORD", "etcd.password")
 			cfg.EtcdDialTimeoutMS = yamlInt(yamlValues, cfg.EtcdDialTimeoutMS, "ETCD_DIAL_TIMEOUT", "etcd.dial.timeout")
@@ -217,10 +258,12 @@ func Load() Config {
 	}
 
 	cfg.ManagerPort = envInt("MANAGER_PORT", cfg.ManagerPort)
+	cfg.ManagerSubnetPrefixes = env("MANAGER_SUBNET_PREFIXES", env("MANAGER_SUBNET_PREFIX", cfg.ManagerSubnetPrefixes))
 	cfg.PixelStreamingIP = env("PIXEL_STREAMING_IP", cfg.PixelStreamingIP)
 	cfg.DefaultExe = env("PIXEL_EXE_PATH", cfg.DefaultExe)
 	cfg.MaxInstances = envInt("MAX_INSTANCES", cfg.MaxInstances)
 	cfg.EtcdHost = env("ETCD_HOST", cfg.EtcdHost)
+	cfg.EtcdEnableAuth = envBool("ETCD_ENABLE_AUTH", cfg.EtcdEnableAuth)
 	cfg.EtcdUser = env("ETCD_USER", cfg.EtcdUser)
 	cfg.EtcdPassword = env("ETCD_PASSWORD", cfg.EtcdPassword)
 	cfg.EtcdDialTimeoutMS = envInt("ETCD_DIAL_TIMEOUT", cfg.EtcdDialTimeoutMS)
