@@ -12,12 +12,14 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
+  FormControlLabel,
   Grid,
   InputLabel,
   MenuItem,
   Select,
   Snackbar,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -28,6 +30,7 @@ import {
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import {
+  getInstanceLogs,
   getInstanceDetails,
   getInstances,
   getModels,
@@ -43,12 +46,56 @@ interface NoticeState {
   text: string;
 }
 
+interface ResolutionPreset {
+  id: string;
+  label: string;
+  resX: number;
+  resY: number;
+}
+
+const resolutionPresets: ResolutionPreset[] = [
+  { id: "360p", label: "360p (640x360)", resX: 640, resY: 360 },
+  { id: "480p", label: "480p (854x480)", resX: 854, resY: 480 },
+  { id: "720p", label: "720p (1280x720)", resX: 1280, resY: 720 },
+  { id: "1440p", label: "1440p (2560x1440)", resX: 2560, resY: 1440 },
+  { id: "1080p", label: "1080p (1920x1080)", resX: 1920, resY: 1080 },
+];
+
+const codecOptions = [
+  { label: "H.264", value: "H264" },
+  { label: "VP8", value: "VP8" },
+  { label: "VP9", value: "VP9" },
+  { label: "AV1", value: "AV1" },
+];
+
+const d3dRendererOptions = [
+  { label: "Auto", value: "" },
+  { label: "d3d11", value: "d3d11" },
+  { label: "d3d12", value: "d3d12" },
+];
+
 export function PortalPage() {
   const [models, setModels] = useState<Record<string, string>>({});
   const [selectedModel, setSelectedModel] = useState("default");
+  const [selectedCodec, setSelectedCodec] = useState("H264");
+  const [selectedResolution, setSelectedResolution] = useState("720p");
   const [port, setPort] = useState<number>(8888);
+  const [encoderMinQuality, setEncoderMinQuality] = useState<number>(-1);
+  const [encoderMaxQuality, setEncoderMaxQuality] = useState<number>(-1);
+  const [webrtcMinBitrateMbps, setWebrtcMinBitrateMbps] = useState<number>(1);
+  const [webrtcStartBitrateMbps, setWebrtcStartBitrateMbps] = useState<number>(10);
+  const [webrtcMaxBitrateMbps, setWebrtcMaxBitrateMbps] = useState<number>(100);
+  const [pixelStreamingHudStats, setPixelStreamingHudStats] = useState<boolean>(false);
+  const [stdOut, setStdOut] = useState<boolean>(false);
+  const [fullStdOutLogOutput, setFullStdOutLogOutput] = useState<boolean>(false);
+  const [webrtcDisableReceiveAudio, setWebrtcDisableReceiveAudio] = useState<boolean>(false);
+  const [webrtcDisableTransmitAudio, setWebrtcDisableTransmitAudio] = useState<boolean>(false);
+  const [d3dRenderer, setD3dRenderer] = useState<"" | "d3d11" | "d3d12">("");
+  const [d3dDebug, setD3dDebug] = useState<boolean>(false);
   const [instances, setInstances] = useState<Instance[]>([]);
+  const [detailsInstanceId, setDetailsInstanceId] = useState<string>("");
   const [details, setDetails] = useState<unknown>(null);
+  const [instanceLogs, setInstanceLogs] = useState<string[]>([]);
   const [notice, setNotice] = useState<NoticeState>({
     open: false,
     type: "success",
@@ -82,10 +129,27 @@ export function PortalPage() {
   }, []);
 
   async function onStartInstance() {
+    const preset =
+      resolutionPresets.find((item) => item.id === selectedResolution) || resolutionPresets[2];
     try {
       const data = await startInstance({
         model: selectedModel,
         pixelStreamingServerPort: Number(port),
+        encoderCodec: selectedCodec,
+        resX: preset.resX,
+        resY: preset.resY,
+        encoderMinQuality,
+        encoderMaxQuality,
+        webrtcMinBitrateMbps,
+        webrtcStartBitrateMbps,
+        webrtcMaxBitrateMbps,
+        pixelStreamingHudStats,
+        stdOut,
+        fullStdOutLogOutput,
+        webrtcDisableReceiveAudio,
+        webrtcDisableTransmitAudio,
+        d3dRenderer,
+        d3dDebug,
       });
       showMessage(data.message || "Instance started");
       await loadInstances();
@@ -109,12 +173,33 @@ export function PortalPage() {
 
   async function onShowDetails(id: string) {
     try {
-      const data = await getInstanceDetails(id);
+      const [data, logs] = await Promise.all([
+        getInstanceDetails(id),
+        getInstanceLogs(id, 300),
+      ]);
+      setDetailsInstanceId(id);
       setDetails(data);
+      setInstanceLogs(logs.lines || []);
     } catch (error) {
       showMessage((error as Error).message, "error");
     }
   }
+
+  useEffect(() => {
+    if (!detailsInstanceId) {
+      return;
+    }
+
+    const interval = setInterval(() => {
+      void getInstanceLogs(detailsInstanceId, 300)
+        .then((logs) => setInstanceLogs(logs.lines || []))
+        .catch(() => {
+          // Keep existing logs on polling failure; user still has previous output.
+        });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [detailsInstanceId]);
 
   async function onStopAll() {
     if (instances.length === 0) {
@@ -154,7 +239,7 @@ export function PortalPage() {
             Start New Instance
           </Typography>
           <Grid container spacing={2}>
-            <Grid size={{ xs: 12, md: 6 }}>
+            <Grid size={{ xs: 12, md: 3 }}>
               <FormControl fullWidth>
                 <InputLabel id="model-label">Model</InputLabel>
                 <Select
@@ -172,7 +257,41 @@ export function PortalPage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid size={{ xs: 12, md: 4 }}>
+            <Grid size={{ xs: 12, md: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel id="codec-label">Encoder Codec</InputLabel>
+                <Select
+                  labelId="codec-label"
+                  value={selectedCodec}
+                  label="Encoder Codec"
+                  onChange={(event) => setSelectedCodec(event.target.value)}
+                >
+                  {codecOptions.map((codec) => (
+                    <MenuItem key={codec.value} value={codec.value}>
+                      {codec.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <FormControl fullWidth>
+                <InputLabel id="resolution-label">Resolution</InputLabel>
+                <Select
+                  labelId="resolution-label"
+                  value={selectedResolution}
+                  label="Resolution"
+                  onChange={(event) => setSelectedResolution(event.target.value)}
+                >
+                  {resolutionPresets.map((preset) => (
+                    <MenuItem key={preset.id} value={preset.id}>
+                      {preset.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, md: 2 }}>
               <TextField
                 label="Pixel Streaming Port"
                 type="number"
@@ -192,6 +311,136 @@ export function PortalPage() {
               >
                 Start
               </Button>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField
+                label="Min Quality"
+                type="number"
+                fullWidth
+                helperText="-1 or 0-100 (preferred over QP)"
+                value={encoderMinQuality}
+                onChange={(event) => setEncoderMinQuality(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField
+                label="Max Quality"
+                type="number"
+                fullWidth
+                helperText="-1 or 0-100"
+                value={encoderMaxQuality}
+                onChange={(event) => setEncoderMaxQuality(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="WebRTC Min Bitrate (Mbps)"
+                type="number"
+                fullWidth
+                helperText=">= 1"
+                value={webrtcMinBitrateMbps}
+                onChange={(event) => setWebrtcMinBitrateMbps(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="WebRTC Start Bitrate (Mbps)"
+                type="number"
+                fullWidth
+                helperText=">= 1"
+                value={webrtcStartBitrateMbps}
+                onChange={(event) => setWebrtcStartBitrateMbps(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="WebRTC Max Bitrate (Mbps)"
+                type="number"
+                fullWidth
+                helperText=">= 1"
+                value={webrtcMaxBitrateMbps}
+                onChange={(event) => setWebrtcMaxBitrateMbps(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={pixelStreamingHudStats}
+                    onChange={(event) => setPixelStreamingHudStats(event.target.checked)}
+                  />
+                }
+                label="PixelStreaming HUD Stats"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={<Switch checked={stdOut} onChange={(event) => setStdOut(event.target.checked)} />}
+                label="Enable StdOut"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={fullStdOutLogOutput}
+                    onChange={(event) => setFullStdOutLogOutput(event.target.checked)}
+                  />
+                }
+                label="Enable Full StdOut Log Output"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={webrtcDisableReceiveAudio}
+                    onChange={(event) => setWebrtcDisableReceiveAudio(event.target.checked)}
+                  />
+                }
+                label="Disable WebRTC Receive Audio"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={webrtcDisableTransmitAudio}
+                    onChange={(event) => setWebrtcDisableTransmitAudio(event.target.checked)}
+                  />
+                }
+                label="Disable WebRTC Transmit Audio"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControl fullWidth>
+                <InputLabel id="d3d-renderer-label">D3D Renderer</InputLabel>
+                <Select
+                  labelId="d3d-renderer-label"
+                  value={d3dRenderer}
+                  label="D3D Renderer"
+                  onChange={(event) =>
+                    setD3dRenderer(event.target.value as "" | "d3d11" | "d3d12")
+                  }
+                >
+                  {d3dRendererOptions.map((opt) => (
+                    <MenuItem key={opt.label} value={opt.value}>
+                      {opt.label}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={{ xs: 12, md: 8 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={d3dDebug}
+                    onChange={(event) => setD3dDebug(event.target.checked)}
+                  />
+                }
+                label="Use D3D Debug Device (-d3ddebug)"
+              />
             </Grid>
           </Grid>
         </CardContent>
@@ -267,22 +516,54 @@ export function PortalPage() {
         </CardContent>
       </Card>
 
-      <Dialog open={Boolean(details)} onClose={() => setDetails(null)} fullWidth maxWidth="md">
+      <Dialog
+        open={Boolean(details)}
+        onClose={() => {
+          setDetails(null);
+          setDetailsInstanceId("");
+          setInstanceLogs([]);
+        }}
+        fullWidth
+        maxWidth="md"
+      >
         <DialogTitle>Instance Details</DialogTitle>
         <DialogContent>
-          <Box
-            component="pre"
-            sx={{
-              p: 2,
-              m: 0,
-              borderRadius: 2,
-              overflow: "auto",
-              backgroundColor: "rgba(17, 24, 39, 0.95)",
-              color: "#c9f4f6",
-            }}
-          >
-            {JSON.stringify(details, null, 2)}
-          </Box>
+          <Stack spacing={2}>
+            <Box
+              component="pre"
+              sx={{
+                p: 2,
+                m: 0,
+                borderRadius: 2,
+                overflow: "auto",
+                backgroundColor: "rgba(17, 24, 39, 0.95)",
+                color: "#c9f4f6",
+                maxHeight: 260,
+              }}
+            >
+              {JSON.stringify(details, null, 2)}
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+                Process Logs
+              </Typography>
+              <Box
+                component="pre"
+                sx={{
+                  p: 2,
+                  m: 0,
+                  borderRadius: 2,
+                  overflow: "auto",
+                  backgroundColor: "#0b1220",
+                  color: "#d6e3ff",
+                  minHeight: 220,
+                  maxHeight: 360,
+                }}
+              >
+                {instanceLogs.length > 0 ? instanceLogs.join("\n") : "No logs captured yet."}
+              </Box>
+            </Box>
+          </Stack>
         </DialogContent>
       </Dialog>
 

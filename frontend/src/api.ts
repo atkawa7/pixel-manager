@@ -2,6 +2,7 @@ import type {
   InstancesResponse,
   ManagersResponse,
   ModelsResponse,
+  InstanceLogsResponse,
   StartInstancePayload,
   StartInstanceResponse,
   StopAllResponse,
@@ -104,6 +105,16 @@ export async function stopInstance(id: string): Promise<{ message?: string }> {
 export async function getInstanceDetails(id: string): Promise<unknown> {
   const response = await fetch(buildURL(`/instances/${encodeURIComponent(id)}`));
   return parseJson<unknown>(response);
+}
+
+export async function getInstanceLogs(
+  id: string,
+  tail = 200,
+): Promise<InstanceLogsResponse> {
+  const response = await fetch(
+    buildURL(`/instances/${encodeURIComponent(id)}/logs?tail=${tail}`),
+  );
+  return parseJson<InstanceLogsResponse>(response);
 }
 
 export async function stopAllInstances(): Promise<StopAllResponse> {

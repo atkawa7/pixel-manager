@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"pixel-manager/internal/config"
 	"pixel-manager/internal/manager"
+	numconv "strconv"
 	"strings"
 	"time"
 )
@@ -134,9 +135,33 @@ func (s *Server) handleInstances(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleInstanceByID(w http.ResponseWriter, r *http.Request) {
-	id := suffixAfter(r.URL.Path, "/instances/")
-	if id == "" {
+	id, isLogsPath, ok := parseInstancePath(r.URL.Path)
+	if !ok || id == "" {
 		http.NotFound(w, r)
+		return
+	}
+
+	if isLogsPath {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		tail := 200
+		if tailQuery := strings.TrimSpace(r.URL.Query().Get("tail")); tailQuery != "" {
+			if parsed, err := numconv.Atoi(tailQuery); err == nil && parsed > 0 {
+				if parsed > 1000 {
+					parsed = 1000
+				}
+				tail = parsed
+			}
+		}
+
+		writeJSON(w, http.StatusOK, map[string]any{
+			"instanceId": id,
+			"tail":       tail,
+			"lines":      s.mgr.InstanceLogs(id, tail),
+		})
 		return
 	}
 
@@ -315,6 +340,36 @@ func suffixAfter(path, token string) string {
 		return ""
 	}
 	return value
+}
+
+func parseInstancePath(path string) (id string, isLogsPath bool, ok bool) {
+	clean := strings.Trim(path, "/")
+	parts := strings.Split(clean, "/")
+
+	// /instances/{id}
+	// /instances/{id}/logs
+	if len(parts) >= 2 && parts[0] == "instances" {
+		if len(parts) == 2 {
+			return parts[1], false, true
+		}
+		if len(parts) == 3 && parts[2] == "logs" {
+			return parts[1], true, true
+		}
+		return "", false, false
+	}
+
+	// /api/instances/{id}
+	// /api/instances/{id}/logs
+	if len(parts) >= 3 && parts[0] == "api" && parts[1] == "instances" {
+		if len(parts) == 3 {
+			return parts[2], false, true
+		}
+		if len(parts) == 4 && parts[3] == "logs" {
+			return parts[2], true, true
+		}
+	}
+
+	return "", false, false
 }
 
 func spaHandler(staticFS fs.FS) http.Handler {

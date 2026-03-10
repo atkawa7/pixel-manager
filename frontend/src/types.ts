@@ -29,6 +29,21 @@ export interface InstancesResponse {
 export interface StartInstancePayload {
   model: string;
   pixelStreamingServerPort: number;
+  encoderCodec?: string;
+  resX?: number;
+  resY?: number;
+  encoderMinQuality?: number;
+  encoderMaxQuality?: number;
+  webrtcMinBitrateMbps?: number;
+  webrtcStartBitrateMbps?: number;
+  webrtcMaxBitrateMbps?: number;
+  pixelStreamingHudStats?: boolean;
+  stdOut?: boolean;
+  fullStdOutLogOutput?: boolean;
+  webrtcDisableReceiveAudio?: boolean;
+  webrtcDisableTransmitAudio?: boolean;
+  d3dRenderer?: "" | "d3d11" | "d3d12";
+  d3dDebug?: boolean;
 }
 
 export interface StartInstanceResponse {
@@ -42,4 +57,10 @@ export interface StopAllResponse {
   stopped: number;
   failed: number;
   errors?: string[];
+}
+
+export interface InstanceLogsResponse {
+  instanceId: string;
+  tail: number;
+  lines: string[];
 }

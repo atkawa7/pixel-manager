@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"os/exec"
 	"pixel-manager/internal/signal"
@@ -100,6 +99,74 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	if req.ResY == 0 {
 		req.ResY = m.cfg.DefaultResY
 	}
+	if req.EncoderCodec == "" {
+		req.EncoderCodec = "H264"
+	}
+	if req.EncoderMinQuality == nil {
+		v := -1
+		req.EncoderMinQuality = &v
+	}
+	if req.EncoderMaxQuality == nil {
+		v := -1
+		req.EncoderMaxQuality = &v
+	}
+	if req.WebRTCMinBitrateMbps == nil {
+		v := 1
+		req.WebRTCMinBitrateMbps = &v
+	}
+	if req.WebRTCStartBitrateMbps == nil {
+		v := 10
+		req.WebRTCStartBitrateMbps = &v
+	}
+	if req.WebRTCMaxBitrateMbps == nil {
+		v := 100
+		req.WebRTCMaxBitrateMbps = &v
+	}
+	if req.PixelStreamingHUDStats == nil {
+		v := false
+		req.PixelStreamingHUDStats = &v
+	}
+	if req.StdOut == nil {
+		v := false
+		req.StdOut = &v
+	}
+	if req.FullStdOutLogOutput == nil {
+		v := false
+		req.FullStdOutLogOutput = &v
+	}
+	if req.WebRTCDisableReceiveAudio == nil {
+		v := false
+		req.WebRTCDisableReceiveAudio = &v
+	}
+	if req.WebRTCDisableTransmitAudio == nil {
+		v := false
+		req.WebRTCDisableTransmitAudio = &v
+	}
+	if req.D3DDebug == nil {
+		v := false
+		req.D3DDebug = &v
+	}
+
+	codec, err := normalizeEncoderCodec(req.EncoderCodec)
+	if err != nil {
+		return StartInstanceResponse{}, http.StatusBadRequest, err
+	}
+	req.EncoderCodec = codec
+	renderer, err := normalizeD3DRenderer(req.D3DRenderer)
+	if err != nil {
+		return StartInstanceResponse{}, http.StatusBadRequest, err
+	}
+	req.D3DRenderer = renderer
+	if err := validateEncoderParameters(*req.EncoderMinQuality, *req.EncoderMaxQuality); err != nil {
+		return StartInstanceResponse{}, http.StatusBadRequest, err
+	}
+	if err := validateBitrateParameters(
+		*req.WebRTCMinBitrateMbps,
+		*req.WebRTCStartBitrateMbps,
+		*req.WebRTCMaxBitrateMbps,
+	); err != nil {
+		return StartInstanceResponse{}, http.StatusBadRequest, err
+	}
 
 	managers, err := m.getClusterManagers(ctx)
 	if err != nil {
@@ -143,13 +210,26 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 				}
 
 				payload, _ := json.Marshal(StartInstanceRequest{
-					PixelStreamingServerPort: req.PixelStreamingServerPort,
-					Model:                    req.Model,
-					NoCheckOther:             true,
-					ResX:                     req.ResX,
-					ResY:                     req.ResY,
-					PixelStreamingID:         req.PixelStreamingID,
-					UserID:                   req.UserID,
+					PixelStreamingServerPort:   req.PixelStreamingServerPort,
+					Model:                      req.Model,
+					EncoderCodec:               req.EncoderCodec,
+					EncoderMinQuality:          req.EncoderMinQuality,
+					EncoderMaxQuality:          req.EncoderMaxQuality,
+					WebRTCMinBitrateMbps:       req.WebRTCMinBitrateMbps,
+					WebRTCStartBitrateMbps:     req.WebRTCStartBitrateMbps,
+					WebRTCMaxBitrateMbps:       req.WebRTCMaxBitrateMbps,
+					PixelStreamingHUDStats:     req.PixelStreamingHUDStats,
+					StdOut:                     req.StdOut,
+					FullStdOutLogOutput:        req.FullStdOutLogOutput,
+					WebRTCDisableReceiveAudio:  req.WebRTCDisableReceiveAudio,
+					WebRTCDisableTransmitAudio: req.WebRTCDisableTransmitAudio,
+					D3DRenderer:                req.D3DRenderer,
+					D3DDebug:                   req.D3DDebug,
+					NoCheckOther:               true,
+					ResX:                       req.ResX,
+					ResY:                       req.ResY,
+					PixelStreamingID:           req.PixelStreamingID,
+					UserID:                     req.UserID,
 				})
 
 				httpReq, _ := http.NewRequestWithContext(ctx, http.MethodPost, url+"/instances", bytes.NewReader(payload))
@@ -198,7 +278,25 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 		id = uuid.NewString()
 	}
 
-	args := buildPixelArgs(req.PixelStreamingServerPort, id, req.ResX, req.ResY)
+	args := buildPixelArgs(
+		req.PixelStreamingServerPort,
+		id,
+		req.ResX,
+		req.ResY,
+		req.EncoderCodec,
+		*req.EncoderMinQuality,
+		*req.EncoderMaxQuality,
+		*req.WebRTCMinBitrateMbps,
+		*req.WebRTCStartBitrateMbps,
+		*req.WebRTCMaxBitrateMbps,
+		*req.PixelStreamingHUDStats,
+		*req.StdOut,
+		*req.FullStdOutLogOutput,
+		*req.WebRTCDisableReceiveAudio,
+		*req.WebRTCDisableTransmitAudio,
+		req.D3DRenderer,
+		*req.D3DDebug,
+	)
 
 	cmd := exec.Command(exePath, args...)
 
@@ -213,8 +311,8 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	m.processes[id] = cmd
 	m.mu.Unlock()
 
-	go m.logPipe(id, stdout)
-	go m.logPipe(id, stderr)
+	go m.logPipe(id, "stdout", stdout)
+	go m.logPipe(id, "stderr", stderr)
 	go m.waitForExit(id, cmd)
 
 	inst := Instance{
@@ -242,30 +340,126 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	}, http.StatusOK, nil
 }
 
-func buildPixelArgs(port int, pixelStreamingID string, resX, resY int) []string {
-	return []string{
+func buildPixelArgs(
+	port int,
+	pixelStreamingID string,
+	resX,
+	resY int,
+	encoderCodec string,
+	minQuality,
+	maxQuality int,
+	minBitrateMbps,
+	startBitrateMbps,
+	maxBitrateMbps int,
+	hudStats,
+	enableStdOut,
+	enableFullStdOut,
+	disableReceiveAudio,
+	disableTransmitAudio bool,
+	d3dRenderer string,
+	d3dDebug bool,
+) []string {
+	args := []string{
 		fmt.Sprintf("-PixelStreamingPort=%d", port),
 		fmt.Sprintf("-ResX=%d", resX),
 		fmt.Sprintf("-ResY=%d", resY),
+		fmt.Sprintf("-PixelStreamingEncoderCodec=%s", encoderCodec),
+		fmt.Sprintf("-PixelStreamingEncoderMinQuality=%d", minQuality),
+		fmt.Sprintf("-PixelStreamingEncoderMaxQuality=%d", maxQuality),
+		fmt.Sprintf("-PixelStreamingWebRTCMinBitrate=%d", mbpsToBps(minBitrateMbps)),
+		fmt.Sprintf("-PixelStreamingWebRTCStartBitrate=%d", mbpsToBps(startBitrateMbps)),
+		fmt.Sprintf("-PixelStreamingWebRTCMaxBitrate=%d", mbpsToBps(maxBitrateMbps)),
+		fmt.Sprintf("-PixelStreamingHudStats=%t", hudStats),
+		fmt.Sprintf("-PixelStreamingWebRTCDisableReceiveAudio=%t", disableReceiveAudio),
+		fmt.Sprintf("-PixelStreamingWebRTCDisableTransmitAudio=%t", disableTransmitAudio),
 		"-Windowed",
 		"-RenderOffScreen",
 		"-ForceRes",
 		fmt.Sprintf("-PixelStreamingID=%s", pixelStreamingID),
 	}
+
+	if enableStdOut {
+		args = append(args, "-StdOut")
+	}
+	if enableFullStdOut {
+		args = append(args, "-FullStdOutLogOutput")
+	}
+	if d3dRenderer == "d3d11" {
+		args = append(args, "-d3d11")
+	}
+	if d3dRenderer == "d3d12" {
+		args = append(args, "-d3d12")
+	}
+	if d3dDebug {
+		args = append(args, "-d3ddebug")
+	}
+
+	return args
 }
 
-func (m *Manager) logPipe(id string, r io.ReadCloser) {
-	defer r.Close()
-	buf := make([]byte, 4096)
-	for {
-		n, err := r.Read(buf)
-		if n > 0 {
-			fmt.Printf("[%s] %s\n", id, strings.TrimSpace(string(buf[:n])))
-		}
-		if err != nil {
-			return
-		}
+func normalizeEncoderCodec(v string) (string, error) {
+	codec := strings.ToUpper(strings.ReplaceAll(strings.TrimSpace(v), ".", ""))
+	switch codec {
+	case "H264", "VP8", "VP9", "AV1":
+		return codec, nil
+	default:
+		return "", fmt.Errorf("unsupported encoder codec %q (allowed: H264, VP8, VP9, AV1)", v)
 	}
+}
+
+func normalizeD3DRenderer(v string) (string, error) {
+	renderer := strings.ToLower(strings.TrimSpace(v))
+	switch renderer {
+	case "", "auto":
+		return "", nil
+	case "d3d11", "d3d12":
+		return renderer, nil
+	default:
+		return "", fmt.Errorf("unsupported d3dRenderer %q (allowed: auto, d3d11, d3d12)", v)
+	}
+}
+
+func validateEncoderParameters(minQuality, maxQuality int) error {
+	if !isWithinOptionalRange(minQuality, 0, 100) {
+		return fmt.Errorf("encoderMinQuality must be -1 or in range 0-100")
+	}
+	if !isWithinOptionalRange(maxQuality, 0, 100) {
+		return fmt.Errorf("encoderMaxQuality must be -1 or in range 0-100")
+	}
+	if minQuality >= 0 && maxQuality >= 0 && minQuality > maxQuality {
+		return fmt.Errorf("encoderMinQuality cannot be greater than encoderMaxQuality")
+	}
+	return nil
+}
+
+func isWithinOptionalRange(v, minAllowed, maxAllowed int) bool {
+	if v == -1 {
+		return true
+	}
+	return v >= minAllowed && v <= maxAllowed
+}
+
+func validateBitrateParameters(minMbps, startMbps, maxMbps int) error {
+	if minMbps < 1 {
+		return fmt.Errorf("webrtcMinBitrateMbps must be >= 1")
+	}
+	if startMbps < 1 {
+		return fmt.Errorf("webrtcStartBitrateMbps must be >= 1")
+	}
+	if maxMbps < 1 {
+		return fmt.Errorf("webrtcMaxBitrateMbps must be >= 1")
+	}
+	if minMbps > startMbps {
+		return fmt.Errorf("webrtcMinBitrateMbps cannot be greater than webrtcStartBitrateMbps")
+	}
+	if startMbps > maxMbps {
+		return fmt.Errorf("webrtcStartBitrateMbps cannot be greater than webrtcMaxBitrateMbps")
+	}
+	return nil
+}
+
+func mbpsToBps(v int) int {
+	return v * 1_000_000
 }
 
 func (m *Manager) waitForExit(id string, cmd *exec.Cmd) {

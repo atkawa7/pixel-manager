@@ -1,12 +1,15 @@
 package manager
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"pixel-manager/internal/config"
 	"pixel-manager/internal/signal"
 	"strings"
@@ -17,8 +20,10 @@ import (
 )
 
 const (
-	ModelsKey   = "/config/models"
-	FiveMinutes = 5 * time.Minute
+	ModelsKey      = "/config/models"
+	FiveMinutes    = 5 * time.Minute
+	MaxLogLinesPer = 1000
+	LogsRootDir    = "logs"
 )
 
 type Manager struct {
@@ -30,6 +35,8 @@ type Manager struct {
 
 	mu        sync.Mutex
 	processes map[string]*exec.Cmd
+
+	logMu sync.RWMutex
 }
 
 func New(cfg config.Config, etcd *clientv3.Client, signalClient signal.Client) *Manager {
@@ -40,6 +47,86 @@ func New(cfg config.Config, etcd *clientv3.Client, signalClient signal.Client) *
 		managerHost: detectManagerHost(),
 		processes:   map[string]*exec.Cmd{},
 	}
+}
+
+func (m *Manager) appendLogLine(id, stream, line string) {
+	line = strings.TrimSpace(line)
+	if line == "" {
+		return
+	}
+	formatted := fmt.Sprintf("[%s] %s", stream, line)
+
+	m.logMu.Lock()
+	defer m.logMu.Unlock()
+
+	logPath := m.instanceLogPath(id)
+	if err := os.MkdirAll(filepath.Dir(logPath), 0o755); err != nil {
+		log.Printf("failed creating log directory for %s: %v", id, err)
+		return
+	}
+
+	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
+	if err != nil {
+		log.Printf("failed opening log file for %s: %v", id, err)
+		return
+	}
+	defer f.Close()
+
+	_, _ = f.WriteString(formatted + "\n")
+}
+
+func (m *Manager) InstanceLogs(id string, tail int) []string {
+	m.logMu.RLock()
+	defer m.logMu.RUnlock()
+
+	if tail <= 0 {
+		tail = 200
+	}
+	if tail > MaxLogLinesPer {
+		tail = MaxLogLinesPer
+	}
+
+	logPath := m.instanceLogPath(id)
+	f, err := os.Open(logPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return []string{}
+		}
+		log.Printf("failed reading log file for %s: %v", id, err)
+		return []string{}
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	lines := make([]string, 0, tail)
+	for scanner.Scan() {
+		lines = append(lines, scanner.Text())
+		if len(lines) > tail {
+			lines = lines[1:]
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Printf("failed scanning log file for %s: %v", id, err)
+	}
+
+	out := make([]string, len(lines))
+	copy(out, lines)
+	return out
+}
+
+func (m *Manager) logPipe(id, stream string, r io.ReadCloser) {
+	defer r.Close()
+	scanner := bufio.NewScanner(r)
+	for scanner.Scan() {
+		line := scanner.Text()
+		m.appendLogLine(id, stream, line)
+		fmt.Printf("[%s][%s] %s\n", id, stream, line)
+	}
+}
+
+func (m *Manager) instanceLogPath(id string) string {
+	return filepath.Join(LogsRootDir, id, "instance.log")
 }
 
 func (m *Manager) ManagerHost() string {

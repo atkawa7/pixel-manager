@@ -13,13 +13,26 @@ type Instance struct {
 }
 
 type StartInstanceRequest struct {
-	PixelStreamingServerPort int    `json:"pixelStreamingServerPort"`
-	Model                    string `json:"model"`
-	NoCheckOther             bool   `json:"noCheckOther"`
-	ResX                     int    `json:"resX"`
-	ResY                     int    `json:"resY"`
-	PixelStreamingID         string `json:"pixelStreamingId"`
-	UserID                   string `json:"userId"`
+	PixelStreamingServerPort   int    `json:"pixelStreamingServerPort"`
+	Model                      string `json:"model"`
+	EncoderCodec               string `json:"encoderCodec"`
+	EncoderMinQuality          *int   `json:"encoderMinQuality,omitempty"`
+	EncoderMaxQuality          *int   `json:"encoderMaxQuality,omitempty"`
+	WebRTCMinBitrateMbps       *int   `json:"webrtcMinBitrateMbps,omitempty"`
+	WebRTCStartBitrateMbps     *int   `json:"webrtcStartBitrateMbps,omitempty"`
+	WebRTCMaxBitrateMbps       *int   `json:"webrtcMaxBitrateMbps,omitempty"`
+	PixelStreamingHUDStats     *bool  `json:"pixelStreamingHudStats,omitempty"`
+	StdOut                     *bool  `json:"stdOut,omitempty"`
+	FullStdOutLogOutput        *bool  `json:"fullStdOutLogOutput,omitempty"`
+	WebRTCDisableReceiveAudio  *bool  `json:"webrtcDisableReceiveAudio,omitempty"`
+	WebRTCDisableTransmitAudio *bool  `json:"webrtcDisableTransmitAudio,omitempty"`
+	D3DRenderer                string `json:"d3dRenderer,omitempty"`
+	D3DDebug                   *bool  `json:"d3dDebug,omitempty"`
+	NoCheckOther               bool   `json:"noCheckOther"`
+	ResX                       int    `json:"resX"`
+	ResY                       int    `json:"resY"`
+	PixelStreamingID           string `json:"pixelStreamingId"`
+	UserID                     string `json:"userId"`
 }
 
 type StartInstanceResponse struct {
