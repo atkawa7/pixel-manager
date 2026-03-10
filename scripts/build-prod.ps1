@@ -28,11 +28,21 @@ finally {
   Pop-Location
 }
 
+$EmbeddedPublicDir = Join-Path $RootDir "internal/httpserver/public"
+$EmbeddedIndex = Join-Path $EmbeddedPublicDir "index.html"
+$EmbeddedAssetsDir = Join-Path $EmbeddedPublicDir "assets"
+$HasJs = @(Get-ChildItem -Path $EmbeddedAssetsDir -Filter *.js -ErrorAction SilentlyContinue).Count -gt 0
+$HasCss = @(Get-ChildItem -Path $EmbeddedAssetsDir -Filter *.css -ErrorAction SilentlyContinue).Count -gt 0
+
+if (-not (Test-Path $EmbeddedIndex) -or -not (Test-Path $EmbeddedAssetsDir) -or -not $HasJs -or -not $HasCss) {
+  throw "Embedded frontend assets missing. Expected index.html and assets/*.js + assets/*.css in internal/httpserver/public."
+}
+
 Write-Host "==> Building Go binary"
 New-Item -ItemType Directory -Force -Path $OutDir | Out-Null
 Push-Location $RootDir
 try {
-  go build -o $OutBin ./cmd/pixel-manager
+  go build -a -o $OutBin ./cmd/pixel-manager
 }
 finally {
   Pop-Location
@@ -40,4 +50,3 @@ finally {
 
 Write-Host "==> Done"
 Write-Host "Binary: $OutBin"
-

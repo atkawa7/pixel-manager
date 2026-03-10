@@ -98,6 +98,12 @@ chmod +x scripts/build-prod.sh
 .\scripts\build-prod.ps1
 ```
 
+Run the produced executable:
+
+```powershell
+.\bin\pixel-manager.exe
+```
+
 ### Manual
 
 ```bash
@@ -111,6 +117,18 @@ go build ./cmd/pixel-manager
 
 The resulting binary serves the SPA directly.
 In production build, frontend API base defaults to `/api`.
+
+Quick verification after build:
+
+```bash
+find internal/httpserver/public -maxdepth 3 -type f
+```
+
+Windows PowerShell equivalent:
+
+```powershell
+Get-ChildItem -Recurse internal/httpserver/public
+```
 
 ## API Summary
 
