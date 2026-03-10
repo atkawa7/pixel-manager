@@ -8,7 +8,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
-	"path/filepath"
+	"path"
 	"pixel-manager/internal/config"
 	"pixel-manager/internal/manager"
 	numconv "strconv"
@@ -390,7 +390,7 @@ func spaHandler(staticFS fs.FS) http.Handler {
 	fileServer := http.FileServer(http.FS(staticFS))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		cleanPath := strings.TrimPrefix(filepath.Clean(r.URL.Path), "/")
+		cleanPath := strings.TrimPrefix(path.Clean(r.URL.Path), "/")
 		if cleanPath == "." || cleanPath == "" {
 			serveFileFromFS(staticFS, w, "/index.html")
 			return
@@ -409,7 +409,7 @@ func spaHandler(staticFS fs.FS) http.Handler {
 			return
 		}
 
-		if filepath.Ext(cleanPath) == "" {
+		if path.Ext(cleanPath) == "" {
 			serveFileFromFS(staticFS, w, "/index.html")
 			return
 		}
@@ -418,8 +418,8 @@ func spaHandler(staticFS fs.FS) http.Handler {
 	})
 }
 
-func serveFileFromFS(staticFS fs.FS, w http.ResponseWriter, path string) {
-	normalized := strings.TrimPrefix(path, "/")
+func serveFileFromFS(staticFS fs.FS, w http.ResponseWriter, assetPath string) {
+	normalized := strings.TrimPrefix(assetPath, "/")
 	data, err := fs.ReadFile(staticFS, normalized)
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
@@ -430,7 +430,7 @@ func serveFileFromFS(staticFS fs.FS, w http.ResponseWriter, path string) {
 		w.Header().Set("Cache-Control", "no-cache")
 	}
 
-	if ct := mime.TypeByExtension(filepath.Ext(normalized)); ct != "" {
+	if ct := mime.TypeByExtension(path.Ext(normalized)); ct != "" {
 		w.Header().Set("Content-Type", ct)
 	} else {
 		w.Header().Set("Content-Type", "application/octet-stream")
