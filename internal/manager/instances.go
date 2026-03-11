@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os/exec"
 	"pixel-manager/internal/signal"
@@ -325,6 +326,7 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 		req.D3DRenderer,
 		*req.D3DDebug,
 	)
+	log.Printf("instance spawning args=%v", args)
 
 	cmd := exec.Command(exePath, args...)
 	configureDetachedProcess(cmd)
@@ -389,34 +391,48 @@ func buildPixelArgs(pixelStreamingIP string,
 	d3dRenderer string,
 	d3dDebug bool,
 ) []string {
+	_ = encoderCodec
+	_ = minQuality
+	_ = maxQuality
+	_ = minBitrateMbps
+	_ = startBitrateMbps
+	_ = maxBitrateMbps
+	_ = hudStats
+	_ = enableStdOut
+	_ = enableFullStdOut
+	_ = disableReceiveAudio
+	_ = disableTransmitAudio
+
 	args := []string{
 		fmt.Sprintf("-PixelStreamingIP=%s", pixelStreamingIP),
 		fmt.Sprintf("-PixelStreamingPort=%d", port),
-		fmt.Sprintf("-ResX=%d", resX),
-		fmt.Sprintf("-ResY=%d", resY),
 		"-WinX=0",
 		"-WinY=0",
-		fmt.Sprintf("-PixelStreamingEncoderCodec=%s", encoderCodec),
-		fmt.Sprintf("-PixelStreamingEncoderMinQuality=%d", minQuality),
-		fmt.Sprintf("-PixelStreamingEncoderMaxQuality=%d", maxQuality),
-		fmt.Sprintf("-PixelStreamingWebRTCMinBitrate=%d", mbpsToBps(minBitrateMbps)),
-		fmt.Sprintf("-PixelStreamingWebRTCStartBitrate=%d", mbpsToBps(startBitrateMbps)),
-		fmt.Sprintf("-PixelStreamingWebRTCMaxBitrate=%d", mbpsToBps(maxBitrateMbps)),
-		fmt.Sprintf("-PixelStreamingHudStats=%t", hudStats),
-		fmt.Sprintf("-PixelStreamingWebRTCDisableReceiveAudio=%t", disableReceiveAudio),
-		fmt.Sprintf("-PixelStreamingWebRTCDisableTransmitAudio=%t", disableTransmitAudio),
+		fmt.Sprintf("-ResX=%d", resX),
+		fmt.Sprintf("-ResY=%d", resY),
 		"-Windowed",
 		"-RenderOffScreen",
 		"-ForceRes",
 		fmt.Sprintf("-PixelStreamingID=%s", pixelStreamingID),
 	}
 
-	if enableStdOut {
-		args = append(args, "-StdOut")
-	}
-	if enableFullStdOut {
-		args = append(args, "-FullStdOutLogOutput")
-	}
+	// Key-only launch args for stability:
+	// args = append(args, fmt.Sprintf("-PixelStreamingEncoderCodec=%s", encoderCodec))
+	// args = append(args, fmt.Sprintf("-PixelStreamingEncoderMinQuality=%d", minQuality))
+	// args = append(args, fmt.Sprintf("-PixelStreamingEncoderMaxQuality=%d", maxQuality))
+	// args = append(args, fmt.Sprintf("-PixelStreamingWebRTCMinBitrate=%d", mbpsToBps(minBitrateMbps)))
+	// args = append(args, fmt.Sprintf("-PixelStreamingWebRTCStartBitrate=%d", mbpsToBps(startBitrateMbps)))
+	// args = append(args, fmt.Sprintf("-PixelStreamingWebRTCMaxBitrate=%d", mbpsToBps(maxBitrateMbps)))
+	// args = append(args, fmt.Sprintf("-PixelStreamingHudStats=%t", hudStats))
+	// args = append(args, fmt.Sprintf("-PixelStreamingWebRTCDisableReceiveAudio=%t", disableReceiveAudio))
+	// args = append(args, fmt.Sprintf("-PixelStreamingWebRTCDisableTransmitAudio=%t", disableTransmitAudio))
+	// if enableStdOut {
+	// 	args = append(args, "-StdOut")
+	// }
+	// if enableFullStdOut {
+	// 	args = append(args, "-FullStdOutLogOutput")
+	// }
+
 	if d3dRenderer == "d3d11" {
 		args = append(args, "-d3d11")
 	}
