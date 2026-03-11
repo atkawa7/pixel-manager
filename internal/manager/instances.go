@@ -402,6 +402,8 @@ func buildPixelArgs(pixelStreamingIP string,
 	_ = enableFullStdOut
 	_ = disableReceiveAudio
 	_ = disableTransmitAudio
+	_ = d3dRenderer
+	_ = d3dDebug
 
 	args := []string{
 		fmt.Sprintf("-PixelStreamingIP=%s", pixelStreamingIP),
@@ -414,6 +416,7 @@ func buildPixelArgs(pixelStreamingIP string,
 		"-RenderOffScreen",
 		"-ForceRes",
 		fmt.Sprintf("-PixelStreamingID=%s", pixelStreamingID),
+		"-d3d11",
 	}
 
 	// Key-only launch args for stability:
@@ -433,15 +436,15 @@ func buildPixelArgs(pixelStreamingIP string,
 	// 	args = append(args, "-FullStdOutLogOutput")
 	// }
 
-	if d3dRenderer == "d3d11" {
-		args = append(args, "-d3d11")
-	}
-	if d3dRenderer == "d3d12" {
-		args = append(args, "-d3d12")
-	}
-	if d3dDebug {
-		args = append(args, "-d3ddebug")
-	}
+	//if d3dRenderer == "d3d11" {
+	//	args = append(args, "-d3d11")
+	//}
+	//if d3dRenderer == "d3d12" {
+	//	args = append(args, "-d3d12")
+	//}
+	//if d3dDebug {
+	//	args = append(args, "-d3ddebug")
+	//}
 
 	return args
 }
