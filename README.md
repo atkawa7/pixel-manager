@@ -45,7 +45,12 @@ etcd:
 manager_port: 4000
 max_instances: 3
 signal_server_url: http://127.0.0.1
+default_d3d_renderer: d3d11
 ```
+
+You can also override renderer defaults via environment:
+- `DEFAULT_D3D_RENDERER` (`d3d11`, `d3d12`, or `auto`)
+- `D3D_RENDERER` (fallback alias)
 
 ## Running Locally
 

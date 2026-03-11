@@ -392,7 +392,7 @@ func buildPixelArgs(pixelStreamingIP string,
 		fmt.Sprintf("-ResX=%d", resX),
 		fmt.Sprintf("-ResY=%d", resY),
 		"-WinX=0",
-        "-WinY=0",
+		"-WinY=0",
 		fmt.Sprintf("-PixelStreamingEncoderCodec=%s", encoderCodec),
 		fmt.Sprintf("-PixelStreamingEncoderMinQuality=%d", minQuality),
 		fmt.Sprintf("-PixelStreamingEncoderMaxQuality=%d", maxQuality),
@@ -675,6 +675,7 @@ func (m *Manager) startupInstances(ctx context.Context) {
 		_, _, _ = m.CreateInstance(ctx, StartInstanceRequest{
 			PixelStreamingServerPort: 8888,
 			Model:                    "default",
+			D3DRenderer:              m.cfg.DefaultD3DRenderer,
 			ResX:                     m.cfg.DefaultResX,
 			ResY:                     m.cfg.DefaultResY,
 		}, true)

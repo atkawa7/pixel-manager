@@ -16,6 +16,7 @@ type Config struct {
 	ManagerSubnetPrefixes string `yaml:"manager_subnet_prefixes"`
 	PixelStreamingIP      string `yaml:"pixel_streaming_ip"`
 	DefaultExe            string `yaml:"pixel_exe_path"`
+	DefaultD3DRenderer    string `yaml:"default_d3d_renderer"`
 	MaxInstances          int    `yaml:"max_instances"`
 	EtcdHost              string `yaml:"etcd_host"`
 	EtcdEnableAuth        bool   `yaml:"etcd_enable_auth"`
@@ -77,6 +78,7 @@ func defaultConfig() Config {
 		ManagerSubnetPrefixes: "",
 		PixelStreamingIP:      "172.20.0.4",
 		DefaultExe:            `C:\pixel-manager\Windows\ToyotaHiluxConvers\Binaries\Win64\ToyotaHiluxConvers.exe`,
+		DefaultD3DRenderer:    "d3d11",
 		MaxInstances:          3,
 		EtcdHost:              "http://172.20.0.4:2379",
 		EtcdEnableAuth:        false,
@@ -197,12 +199,24 @@ func maskSecret(v string) string {
 	return "******"
 }
 
+func normalizeD3DRendererDefault(v string) string {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "", "auto":
+		return ""
+	case "d3d11", "d3d12":
+		return strings.ToLower(strings.TrimSpace(v))
+	default:
+		return "d3d11"
+	}
+}
+
 func (c Config) SafeView() map[string]any {
 	return map[string]any{
 		"managerPort":           c.ManagerPort,
 		"managerSubnetPrefixes": c.ManagerSubnetPrefixes,
 		"pixelStreamingIP":      c.PixelStreamingIP,
 		"defaultExe":            c.DefaultExe,
+		"defaultD3DRenderer":    c.DefaultD3DRenderer,
 		"maxInstances":          c.MaxInstances,
 		"etcdHost":              c.EtcdHost,
 		"etcdEnableAuth":        c.EtcdEnableAuth,
@@ -241,6 +255,7 @@ func Load() Config {
 			cfg.EtcdRequestTimeout = yamlInt(yamlValues, cfg.EtcdRequestTimeout, "ETCD_REQUEST_TIMEOUT", "etcd.request.timeout")
 			cfg.DefaultResX = yamlInt(yamlValues, cfg.DefaultResX, "DEFAULT_RES_X", "default.res.x", "defaultResX")
 			cfg.DefaultResY = yamlInt(yamlValues, cfg.DefaultResY, "DEFAULT_RES_Y", "default.res.y", "defaultResY")
+			cfg.DefaultD3DRenderer = yamlString(yamlValues, cfg.DefaultD3DRenderer, "DEFAULT_D3D_RENDERER", "default.d3d.renderer", "defaultD3DRenderer")
 			cfg.SignalServerURL = yamlString(yamlValues, cfg.SignalServerURL, "SIGNAL_SERVER_URL", "signal.server.url", "signalServerUrl")
 			cfg.StartupInstances = yamlInt(yamlValues, cfg.StartupInstances, "STARTUP_INSTANCES", "startup.instances", "startupInstances")
 
@@ -270,8 +285,10 @@ func Load() Config {
 	cfg.EtcdRequestTimeout = envInt("ETCD_REQUEST_TIMEOUT", cfg.EtcdRequestTimeout)
 	cfg.DefaultResX = envInt("DEFAULT_RES_X", cfg.DefaultResX)
 	cfg.DefaultResY = envInt("DEFAULT_RES_Y", cfg.DefaultResY)
+	cfg.DefaultD3DRenderer = env("DEFAULT_D3D_RENDERER", env("D3D_RENDERER", cfg.DefaultD3DRenderer))
 	cfg.SignalServerURL = env("SIGNAL_SERVER_URL", cfg.SignalServerURL)
 	cfg.StartupInstances = envInt("STARTUP_INSTANCES", cfg.StartupInstances)
+	cfg.DefaultD3DRenderer = normalizeD3DRendererDefault(cfg.DefaultD3DRenderer)
 
 	if b, err := json.Marshal(cfg.SafeView()); err == nil {
 		log.Printf("effective config path=%q values=%s", path, string(b))

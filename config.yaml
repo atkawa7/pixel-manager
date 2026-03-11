@@ -17,3 +17,6 @@ max:
   instances: 5
 startup:
   instances: 3
+default:
+  d3d:
+    renderer: d3d11
