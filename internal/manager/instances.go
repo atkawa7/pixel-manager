@@ -327,11 +327,12 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	)
 
 	cmd := exec.Command(exePath, args...)
+	configureDetachedProcess(cmd)
 	cmd.Stdout = io.Discard
 	cmd.Stderr = io.Discard
 
 	if err := cmd.Start(); err != nil {
-		return StartInstanceResponse{}, http.StatusInternalServerError, err
+		return StartInstanceResponse{}, http.StatusInternalServerError, fmt.Errorf("failed to start executable %q with args %v: %w", exePath, args, err)
 	}
 
 	m.mu.Lock()
