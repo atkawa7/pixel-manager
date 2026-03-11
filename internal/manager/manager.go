@@ -42,10 +42,10 @@ type Manager struct {
 }
 
 func New(cfg config.Config, etcd *clientv3.Client, signalClient signal.Client) *Manager {
-	managerHost := detectManagerHost(cfg.ManagerSubnetPrefixes)
+	// managerHost := detectManagerHost(cfg.ManagerSubnetPrefixes)
 	managerName := detectManagerName()
 	if managerName == "" {
-		managerName = managerHost
+		//managerName = managerHost
 	}
 
 	return &Manager{
@@ -53,7 +53,7 @@ func New(cfg config.Config, etcd *clientv3.Client, signalClient signal.Client) *
 		etcd:        etcd,
 		signal:      signalClient,
 		managerName: managerName,
-		managerHost: managerHost,
+		managerHost: managerName,
 		processes:   map[string]*exec.Cmd{},
 	}
 }
