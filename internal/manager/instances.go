@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os/exec"
 	"pixel-manager/internal/signal"
@@ -326,9 +327,8 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	)
 
 	cmd := exec.Command(exePath, args...)
-
-	stdout, _ := cmd.StdoutPipe()
-	stderr, _ := cmd.StderrPipe()
+	cmd.Stdout = io.Discard
+	cmd.Stderr = io.Discard
 
 	if err := cmd.Start(); err != nil {
 		return StartInstanceResponse{}, http.StatusInternalServerError, err
@@ -338,8 +338,6 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	m.processes[id] = cmd
 	m.mu.Unlock()
 
-	go m.logPipe(id, "stdout", stdout)
-	go m.logPipe(id, "stderr", stderr)
 	go m.waitForExit(id, cmd)
 
 	inst := Instance{
