@@ -305,6 +305,7 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	}
 
 	args := buildPixelArgs(
+		m.cfg.PixelStreamingIP,
 		req.PixelStreamingServerPort,
 		id,
 		req.ResX,
@@ -366,7 +367,7 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	}, http.StatusOK, nil
 }
 
-func buildPixelArgs(
+func buildPixelArgs(pixelStreamingIP string,
 	port int,
 	pixelStreamingID string,
 	resX,
@@ -386,9 +387,12 @@ func buildPixelArgs(
 	d3dDebug bool,
 ) []string {
 	args := []string{
+		fmt.Sprintf("-PixelStreamingIP=%s", pixelStreamingIP),
 		fmt.Sprintf("-PixelStreamingPort=%d", port),
 		fmt.Sprintf("-ResX=%d", resX),
 		fmt.Sprintf("-ResY=%d", resY),
+		"-WinX=0",
+        "-WinY=0",
 		fmt.Sprintf("-PixelStreamingEncoderCodec=%s", encoderCodec),
 		fmt.Sprintf("-PixelStreamingEncoderMinQuality=%d", minQuality),
 		fmt.Sprintf("-PixelStreamingEncoderMaxQuality=%d", maxQuality),
