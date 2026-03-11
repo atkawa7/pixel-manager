@@ -1,15 +1,17 @@
 package manager
 
 type Instance struct {
-	PixelStreamingID string `json:"pixelStreamingId"`
-	Host             string `json:"host"`
-	Port             int    `json:"port"`
-	PID              int    `json:"pid"`
-	StartTime        int64  `json:"startTime"`
-	Model            string `json:"model"`
-	UserID           string `json:"userId,omitempty"`
-	Subscribed       bool   `json:"subscribed,omitempty"`
-	LastSubscribed   string `json:"lastSubscribed,omitempty"`
+	PixelStreamingID string   `json:"pixelStreamingId"`
+	Host             string   `json:"host"`
+	Port             int      `json:"port"`
+	PID              int      `json:"pid"`
+	StartTime        int64    `json:"startTime"`
+	Model            string   `json:"model"`
+	ExecutablePath   string   `json:"executablePath,omitempty"`
+	Args             []string `json:"args,omitempty"`
+	UserID           string   `json:"userId,omitempty"`
+	Subscribed       bool     `json:"subscribed,omitempty"`
+	LastSubscribed   string   `json:"lastSubscribed,omitempty"`
 }
 
 type StartInstanceRequest struct {

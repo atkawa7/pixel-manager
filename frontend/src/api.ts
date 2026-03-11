@@ -1,5 +1,6 @@
 import type {
   AppConfigResponse,
+  InstanceDetailsResponse,
   InstancesResponse,
   ManagersResponse,
   ModelsResponse,
@@ -108,9 +109,9 @@ export async function stopInstance(id: string): Promise<{ message?: string }> {
   return parseJson<{ message?: string }>(response);
 }
 
-export async function getInstanceDetails(id: string): Promise<unknown> {
+export async function getInstanceDetails(id: string): Promise<InstanceDetailsResponse> {
   const response = await fetch(buildURL(`/instances/${encodeURIComponent(id)}`));
-  return parseJson<unknown>(response);
+  return parseJson<InstanceDetailsResponse>(response);
 }
 
 export async function getInstanceLogs(

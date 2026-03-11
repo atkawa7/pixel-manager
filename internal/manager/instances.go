@@ -349,6 +349,8 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 		PID:              cmd.Process.Pid,
 		StartTime:        time.Now().UnixMilli(),
 		Model:            req.Model,
+		ExecutablePath:   exePath,
+		Args:             append([]string(nil), args...),
 		UserID:           req.UserID,
 	}
 

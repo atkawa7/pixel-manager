@@ -4,10 +4,17 @@ export interface Instance {
   port: number;
   pid: number;
   model: string;
+  executablePath?: string;
+  args?: string[];
   startTime: string;
   userId?: string;
   subscribed?: boolean;
   lastSubscribed?: string;
+}
+
+export interface InstanceDetailsResponse extends Instance {
+  exists: boolean;
+  message?: string;
 }
 
 export interface ModelsResponse {

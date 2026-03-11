@@ -38,7 +38,7 @@ import {
   stopAllInstances,
   stopInstance,
 } from "../api";
-import type { Instance } from "../types";
+import type { Instance, InstanceDetailsResponse } from "../types";
 
 interface NoticeState {
   open: boolean;
@@ -94,7 +94,7 @@ export function PortalPage() {
   const [d3dDebug, setD3dDebug] = useState<boolean>(false);
   const [instances, setInstances] = useState<Instance[]>([]);
   const [detailsInstanceId, setDetailsInstanceId] = useState<string>("");
-  const [details, setDetails] = useState<unknown>(null);
+  const [details, setDetails] = useState<InstanceDetailsResponse | null>(null);
   const [instanceLogs, setInstanceLogs] = useState<string[]>([]);
   const [notice, setNotice] = useState<NoticeState>({
     open: false,
@@ -120,6 +120,15 @@ export function PortalPage() {
 
   function showMessage(text: string, type: AlertColor = "success") {
     setNotice({ open: true, text, type });
+  }
+
+  function formatLaunchCommand(instance: InstanceDetailsResponse): string {
+    const exe = instance.executablePath || "<unknown executable>";
+    const args = instance.args || [];
+    if (args.length === 0) {
+      return exe;
+    }
+    return `${exe}\n${args.join("\n")}`;
   }
 
   useEffect(() => {
@@ -529,19 +538,43 @@ export function PortalPage() {
         <DialogTitle>Instance Details</DialogTitle>
         <DialogContent>
           <Stack spacing={2}>
-            <Box
-              component="pre"
-              sx={{
-                p: 2,
-                m: 0,
-                borderRadius: 2,
-                overflow: "auto",
-                backgroundColor: "rgba(17, 24, 39, 0.95)",
-                color: "#c9f4f6",
-                maxHeight: 260,
-              }}
-            >
-              {JSON.stringify(details, null, 2)}
+            <Box>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+                Launch Command
+              </Typography>
+              <Box
+                component="pre"
+                sx={{
+                  p: 2,
+                  m: 0,
+                  borderRadius: 2,
+                  overflow: "auto",
+                  backgroundColor: "#0f172a",
+                  color: "#d8e9ff",
+                  maxHeight: 240,
+                }}
+              >
+                {details ? formatLaunchCommand(details) : ""}
+              </Box>
+            </Box>
+            <Box>
+              <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+                Instance Metadata
+              </Typography>
+              <Box
+                component="pre"
+                sx={{
+                  p: 2,
+                  m: 0,
+                  borderRadius: 2,
+                  overflow: "auto",
+                  backgroundColor: "rgba(17, 24, 39, 0.95)",
+                  color: "#c9f4f6",
+                  maxHeight: 260,
+                }}
+              >
+                {JSON.stringify(details, null, 2)}
+              </Box>
             </Box>
             <Box>
               <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
