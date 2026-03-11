@@ -104,17 +104,19 @@ func (s *Server) handleInstances(w http.ResponseWriter, r *http.Request) {
 		active := make([]map[string]any, 0, len(instances))
 		for _, inst := range instances {
 			active = append(active, map[string]any{
-				"pixelStreamingId": inst.PixelStreamingID,
-				"host":             inst.Host,
-				"port":             inst.Port,
-				"pid":              inst.PID,
-				"model":            inst.Model,
-				"executablePath":   inst.ExecutablePath,
-				"args":             inst.Args,
-				"userId":           inst.UserID,
-				"subscribed":       inst.Subscribed,
-				"lastSubscribed":   inst.LastSubscribed,
-				"startTime":        time.UnixMilli(inst.StartTime).Format(time.RFC3339),
+				"pixelStreamingId":         inst.PixelStreamingID,
+				"pixelStreamingIp":         inst.PixelStreamingIP,
+				"host":                     inst.Host,
+				"port":                     inst.Port,
+				"pixelStreamingServerPort": inst.PixelStreamingServerPort,
+				"pid":                      inst.PID,
+				"model":                    inst.Model,
+				"executablePath":           inst.ExecutablePath,
+				"args":                     inst.Args,
+				"userId":                   inst.UserID,
+				"subscribed":               inst.Subscribed,
+				"lastSubscribed":           inst.LastSubscribed,
+				"startTime":                time.UnixMilli(inst.StartTime).Format(time.RFC3339),
 			})
 		}
 
@@ -179,18 +181,20 @@ func (s *Server) handleInstanceByID(w http.ResponseWriter, r *http.Request) {
 		for _, item := range inst {
 			if item.PixelStreamingID == id {
 				writeJSON(w, http.StatusOK, map[string]any{
-					"exists":           true,
-					"pixelStreamingId": item.PixelStreamingID,
-					"host":             item.Host,
-					"port":             item.Port,
-					"pid":              item.PID,
-					"model":            item.Model,
-					"executablePath":   item.ExecutablePath,
-					"args":             item.Args,
-					"userId":           item.UserID,
-					"subscribed":       item.Subscribed,
-					"lastSubscribed":   item.LastSubscribed,
-					"startTime":        time.UnixMilli(item.StartTime).Format(time.RFC3339),
+					"exists":                   true,
+					"pixelStreamingId":         item.PixelStreamingID,
+					"pixelStreamingIp":         item.PixelStreamingIP,
+					"host":                     item.Host,
+					"port":                     item.Port,
+					"pixelStreamingServerPort": item.PixelStreamingServerPort,
+					"pid":                      item.PID,
+					"model":                    item.Model,
+					"executablePath":           item.ExecutablePath,
+					"args":                     item.Args,
+					"userId":                   item.UserID,
+					"subscribed":               item.Subscribed,
+					"lastSubscribed":           item.LastSubscribed,
+					"startTime":                time.UnixMilli(item.StartTime).Format(time.RFC3339),
 				})
 				return
 			}

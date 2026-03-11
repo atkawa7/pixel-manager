@@ -343,15 +343,17 @@ func (m *Manager) CreateInstance(ctx context.Context, req StartInstanceRequest, 
 	go m.waitForExit(id, cmd)
 
 	inst := Instance{
-		PixelStreamingID: id,
-		Host:             m.managerHost,
-		Port:             req.PixelStreamingServerPort,
-		PID:              cmd.Process.Pid,
-		StartTime:        time.Now().UnixMilli(),
-		Model:            req.Model,
-		ExecutablePath:   exePath,
-		Args:             append([]string(nil), args...),
-		UserID:           req.UserID,
+		PixelStreamingID:         id,
+		PixelStreamingIP:         m.cfg.PixelStreamingIP,
+		Host:                     m.managerHost,
+		Port:                     req.PixelStreamingServerPort,
+		PixelStreamingServerPort: req.PixelStreamingServerPort,
+		PID:                      cmd.Process.Pid,
+		StartTime:                time.Now().UnixMilli(),
+		Model:                    req.Model,
+		ExecutablePath:           exePath,
+		Args:                     append([]string(nil), args...),
+		UserID:                   req.UserID,
 	}
 
 	if err := m.putInstance(ctx, inst); err != nil {

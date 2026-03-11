@@ -1,7 +1,9 @@
 export interface Instance {
   pixelStreamingId: string;
+  pixelStreamingIp?: string;
   host: string;
   port: number;
+  pixelStreamingServerPort?: number;
   pid: number;
   model: string;
   executablePath?: string;
