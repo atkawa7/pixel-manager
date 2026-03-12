@@ -1,0 +1,13 @@
+﻿{
+  "allOf": [
+    { "$ref": "./Instance.json" },
+    {
+      "type": "object",
+      "properties": {
+        "exists": { "type": "boolean" },
+        "message": { "type": "string" }
+      },
+      "required": ["exists"]
+    }
+  ]
+}

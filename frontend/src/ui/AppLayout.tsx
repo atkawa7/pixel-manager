@@ -91,12 +91,15 @@ export function AppLayout() {
         </List>
         <Box sx={{ mt: "auto", px: 2, pb: 3 }}>
           <ListItemButton
-            component="a"
-            href="/docs"
+            selected={location.pathname === "/docs"}
+            onClick={() => navigate("/docs")}
             sx={{
               borderRadius: 2,
               color: "rgba(248,251,252,0.9)",
               backgroundColor: "rgba(255,255,255,0.08)",
+              "&.Mui-selected": {
+                backgroundColor: "rgba(255,255,255,0.2)",
+              },
             }}
           >
             <ListItemIcon sx={{ color: "inherit", minWidth: 36 }}>

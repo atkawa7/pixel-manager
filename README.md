@@ -151,6 +151,16 @@ Core endpoints (also available under `/api/...`):
 - `GET /managers`
 - `GET /config`
 
+## OpenAPI Docs
+
+OpenAPI docs are served by the backend and are also available under `/api/...`.
+
+- Main spec:
+  - `GET /openapi.json`
+- Split schema files:
+  - `GET /openapi/schemas/{schema}.json`
+  - Example: `GET /openapi/schemas/StartInstanceRequest.json`
+
 ## Logs
 
 Process logs are stored on disk per instance:

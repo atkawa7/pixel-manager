@@ -7,6 +7,7 @@ import { PortalPage } from "./pages/PortalPage";
 import { ManagersPage } from "./pages/ManagersPage";
 import { ModelsPage } from "./pages/ModelsPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { ApiDocsPage } from "./pages/ApiDocsPage";
 import "./styles.css";
 
 const theme = createTheme({
@@ -43,6 +44,7 @@ function App() {
             <Route path="/managers" element={<ManagersPage />} />
             <Route path="/models" element={<ModelsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/docs" element={<ApiDocsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

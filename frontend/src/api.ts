@@ -128,3 +128,7 @@ export async function stopAllInstances(): Promise<StopAllResponse> {
   const response = await fetch(buildURL("/instances"), { method: "DELETE" });
   return parseJson<StopAllResponse>(response);
 }
+
+export function getOpenAPIURL(baseURL = ""): string {
+  return buildURL("/openapi.json", baseURL);
+}

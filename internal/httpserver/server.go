@@ -64,6 +64,7 @@ func (s *Server) registerAPIRoutes(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/managers", s.handleManagers)
 	mux.HandleFunc(prefix+"/config", s.handleConfig)
 	mux.HandleFunc(prefix+"/openapi.json", s.handleOpenAPI)
+	mux.HandleFunc(prefix+"/openapi/", s.handleOpenAPIAsset)
 }
 
 func (s *Server) Start() error {
@@ -318,13 +319,43 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
-		"openapi": "3.0.3",
-		"info": map[string]any{
-			"title":   "Pixel Manager API",
-			"version": "1.0.0",
-		},
-	})
+	s.serveOpenAPIFile(w, "openapi.json")
+}
+
+func (s *Server) handleOpenAPIAsset(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	relPath := strings.TrimPrefix(r.URL.Path, "/openapi/")
+	if strings.HasPrefix(r.URL.Path, "/api/openapi/") {
+		relPath = strings.TrimPrefix(r.URL.Path, "/api/openapi/")
+	}
+	relPath = strings.TrimSpace(relPath)
+	relPath = path.Clean(relPath)
+	if relPath == "." || relPath == "" || strings.HasPrefix(relPath, "..") {
+		http.NotFound(w, r)
+		return
+	}
+
+	s.serveOpenAPIFile(w, relPath)
+}
+
+func (s *Server) serveOpenAPIFile(w http.ResponseWriter, relPath string) {
+	data, err := fs.ReadFile(embeddedOpenAPIFiles, path.Join("openapi", relPath))
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+
+	if ct := mime.TypeByExtension(path.Ext(relPath)); ct != "" {
+		w.Header().Set("Content-Type", ct)
+	} else {
+		w.Header().Set("Content-Type", "application/octet-stream")
+	}
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(data)
 }
 
 func (s *Server) withMiddleware(next http.Handler) http.Handler {

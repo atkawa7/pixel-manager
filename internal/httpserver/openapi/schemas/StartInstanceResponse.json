@@ -1,0 +1,14 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "message": { "type": "string" },
+    "pixelStreamingId": { "type": "string" },
+    "pixelStreamingIp": { "type": "string" },
+    "pixelStreamingServerPort": { "type": "integer" },
+    "pid": { "type": "integer" },
+    "model": { "type": "string" },
+    "reused": { "type": "boolean" },
+    "error": { "type": "string" }
+  },
+  "required": ["reused"]
+}

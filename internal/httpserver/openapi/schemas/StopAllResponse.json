@@ -1,0 +1,14 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "message": { "type": "string" },
+    "total": { "type": "integer" },
+    "stopped": { "type": "integer" },
+    "failed": { "type": "integer" },
+    "errors": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["message", "total", "stopped", "failed"]
+}

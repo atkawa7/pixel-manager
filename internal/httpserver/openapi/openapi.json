@@ -1,0 +1,365 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Pixel Manager API",
+    "version": "1.0.0"
+  },
+  "servers": [
+    { "url": "/" },
+    { "url": "/api" }
+  ],
+  "paths": {
+    "/openapi.json": {
+      "get": {
+        "summary": "Get OpenAPI document",
+        "operationId": "getOpenAPI",
+        "responses": {
+          "200": { "description": "OpenAPI JSON document" }
+        }
+      }
+    },
+    "/instances": {
+      "get": {
+        "summary": "List active instances",
+        "operationId": "listInstances",
+        "responses": {
+          "200": {
+            "description": "Instances fetched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InstancesResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create or reuse an instance",
+        "operationId": "createInstance",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/StartInstanceRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Instance created or reused",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StartInstanceResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "429": {
+            "description": "Max instances reached",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Stop all instances",
+        "operationId": "stopAllInstances",
+        "responses": {
+          "200": {
+            "description": "Stop result",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StopAllResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/instances/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "summary": "Get instance details",
+        "operationId": "getInstanceByID",
+        "responses": {
+          "200": {
+            "description": "Instance found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InstanceDetailsResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InstanceDetailsResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Stop instance by ID",
+        "operationId": "stopInstanceByID",
+        "responses": {
+          "200": {
+            "description": "Instance stopped",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/MessageResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Instance not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/instances/{id}/logs": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        },
+        {
+          "name": "tail",
+          "in": "query",
+          "required": false,
+          "description": "Number of latest log lines to return (1-1000). Defaults to 200.",
+          "schema": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 200
+          }
+        }
+      ],
+      "get": {
+        "summary": "Get instance logs",
+        "operationId": "getInstanceLogs",
+        "responses": {
+          "200": {
+            "description": "Latest instance logs",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/InstanceLogsResponse" }
+              }
+            }
+          },
+          "404": { "description": "Path not found" }
+        }
+      }
+    },
+    "/models": {
+      "get": {
+        "summary": "List models",
+        "operationId": "listModels",
+        "responses": {
+          "200": {
+            "description": "Models fetched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ModelsResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create or update a model",
+        "operationId": "setModel",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ModelRequest" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Model saved",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ModelsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/models/{name}": {
+      "parameters": [
+        {
+          "name": "name",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "delete": {
+        "summary": "Delete model by name",
+        "operationId": "deleteModelByName",
+        "responses": {
+          "200": {
+            "description": "Model deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ModelsResponse" }
+              }
+            }
+          },
+          "400": {
+            "description": "Model cannot be deleted",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/managers": {
+      "get": {
+        "summary": "List cluster managers",
+        "operationId": "listManagers",
+        "responses": {
+          "200": {
+            "description": "Managers fetched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ManagersResponse" }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config": {
+      "get": {
+        "summary": "Get backend config view",
+        "operationId": "getConfig",
+        "responses": {
+          "200": {
+            "description": "Config fetched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/AppConfigResponse" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": { "$ref": "./openapi/schemas/ErrorResponse.json" },
+      "MessageResponse": { "$ref": "./openapi/schemas/MessageResponse.json" },
+      "Instance": { "$ref": "./openapi/schemas/Instance.json" },
+      "InstancesResponse": { "$ref": "./openapi/schemas/InstancesResponse.json" },
+      "StartInstanceRequest": { "$ref": "./openapi/schemas/StartInstanceRequest.json" },
+      "StartInstanceResponse": { "$ref": "./openapi/schemas/StartInstanceResponse.json" },
+      "InstanceDetailsResponse": { "$ref": "./openapi/schemas/InstanceDetailsResponse.json" },
+      "InstanceLogsResponse": { "$ref": "./openapi/schemas/InstanceLogsResponse.json" },
+      "StopAllResponse": { "$ref": "./openapi/schemas/StopAllResponse.json" },
+      "ModelRequest": { "$ref": "./openapi/schemas/ModelRequest.json" },
+      "ModelsResponse": { "$ref": "./openapi/schemas/ModelsResponse.json" },
+      "ManagerNode": { "$ref": "./openapi/schemas/ManagerNode.json" },
+      "ManagersResponse": { "$ref": "./openapi/schemas/ManagersResponse.json" },
+      "AppConfigResponse": { "$ref": "./openapi/schemas/AppConfigResponse.json" }
+    }
+  }
+}

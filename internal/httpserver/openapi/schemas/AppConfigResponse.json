@@ -1,0 +1,11 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "configPath": { "type": "string" },
+    "config": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "required": ["configPath", "config"]
+}

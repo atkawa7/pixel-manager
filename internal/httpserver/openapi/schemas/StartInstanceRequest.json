@@ -1,0 +1,28 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "pixelStreamingServerPort": { "type": "integer" },
+    "model": { "type": "string" },
+    "encoderCodec": { "type": "string" },
+    "encoderMinQuality": { "type": "integer" },
+    "encoderMaxQuality": { "type": "integer" },
+    "webrtcMinBitrateMbps": { "type": "integer" },
+    "webrtcStartBitrateMbps": { "type": "integer" },
+    "webrtcMaxBitrateMbps": { "type": "integer" },
+    "pixelStreamingHudStats": { "type": "boolean" },
+    "stdOut": { "type": "boolean" },
+    "fullStdOutLogOutput": { "type": "boolean" },
+    "webrtcDisableReceiveAudio": { "type": "boolean" },
+    "webrtcDisableTransmitAudio": { "type": "boolean" },
+    "d3dRenderer": {
+      "type": "string",
+      "enum": ["", "d3d11", "d3d12"]
+    },
+    "d3dDebug": { "type": "boolean" },
+    "noCheckOther": { "type": "boolean" },
+    "resX": { "type": "integer" },
+    "resY": { "type": "integer" },
+    "pixelStreamingId": { "type": "string" },
+    "userId": { "type": "string" }
+  }
+}

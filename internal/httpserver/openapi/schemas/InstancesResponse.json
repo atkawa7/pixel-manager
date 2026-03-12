@@ -1,0 +1,12 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "count": { "type": "integer" },
+    "maxInstances": { "type": "integer" },
+    "active": {
+      "type": "array",
+      "items": { "$ref": "./Instance.json" }
+    }
+  },
+  "required": ["count", "maxInstances", "active"]
+}
