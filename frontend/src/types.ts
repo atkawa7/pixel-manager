@@ -95,6 +95,10 @@ export interface BuildInfo {
 export interface BuildsResponse {
   count: number;
   builds: BuildInfo[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 }
 
 export interface BuildExecutablesResponse {

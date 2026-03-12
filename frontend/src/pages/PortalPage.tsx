@@ -75,6 +75,7 @@ const d3dRendererOptions = [
 ];
 
 export function PortalPage() {
+  const allModelsValue = "__all_models__";
   const [models, setModels] = useState<Record<string, string>>({});
   const [selectedModel, setSelectedModel] = useState("default");
   const [selectedCodec, setSelectedCodec] = useState("H264");
@@ -140,27 +141,56 @@ export function PortalPage() {
   async function onStartInstance() {
     const preset =
       resolutionPresets.find((item) => item.id === selectedResolution) || resolutionPresets[2];
+    const targetModels =
+      selectedModel === allModelsValue
+        ? modelNames
+        : [selectedModel];
+    if (targetModels.length === 0) {
+      showMessage("No models configured", "error");
+      return;
+    }
+
     try {
-      const data = await startInstance({
-        model: selectedModel,
-        pixelStreamingServerPort: Number(port),
-        encoderCodec: selectedCodec,
-        resX: preset.resX,
-        resY: preset.resY,
-        encoderMinQuality,
-        encoderMaxQuality,
-        webrtcMinBitrateMbps,
-        webrtcStartBitrateMbps,
-        webrtcMaxBitrateMbps,
-        pixelStreamingHudStats,
-        stdOut,
-        fullStdOutLogOutput,
-        webrtcDisableReceiveAudio,
-        webrtcDisableTransmitAudio,
-        d3dRenderer,
-        d3dDebug,
-      });
-      showMessage(data.message || "Instance started");
+      const results = await Promise.allSettled(
+        targetModels.map((modelName) =>
+          startInstance({
+            model: modelName,
+            pixelStreamingServerPort: Number(port),
+            encoderCodec: selectedCodec,
+            resX: preset.resX,
+            resY: preset.resY,
+            encoderMinQuality,
+            encoderMaxQuality,
+            webrtcMinBitrateMbps,
+            webrtcStartBitrateMbps,
+            webrtcMaxBitrateMbps,
+            pixelStreamingHudStats,
+            stdOut,
+            fullStdOutLogOutput,
+            webrtcDisableReceiveAudio,
+            webrtcDisableTransmitAudio,
+            d3dRenderer,
+            d3dDebug,
+          }),
+        ),
+      );
+      const successCount = results.filter((item) => item.status === "fulfilled").length;
+      const failureCount = results.length - successCount;
+      if (failureCount === 0) {
+        showMessage(
+          successCount === 1
+            ? "Instance started"
+            : `Started ${successCount} instance(s) across all models`,
+        );
+      } else {
+        const firstError = results.find((item) => item.status === "rejected") as
+          | PromiseRejectedResult
+          | undefined;
+        showMessage(
+          `Started ${successCount}/${results.length}. Failed ${failureCount}. ${firstError?.reason?.message || ""}`.trim(),
+          "error",
+        );
+      }
       await loadInstances();
     } catch (error) {
       showMessage((error as Error).message, "error");
@@ -234,7 +264,7 @@ export function PortalPage() {
       <Card elevation={0} sx={{ background: "#155e63", color: "#fff" }}>
         <CardContent>
           <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Distributed Pixel Manager
+            Instances
           </Typography>
           <Typography variant="body1" sx={{ opacity: 0.9 }}>
             Manage Unreal Engine pixel streaming instances across your cluster.
@@ -258,6 +288,9 @@ export function PortalPage() {
                   onChange={(event) => setSelectedModel(event.target.value)}
                 >
                   {modelNames.length === 0 && <MenuItem value="default">default</MenuItem>}
+                  {modelNames.length > 1 && (
+                    <MenuItem value={allModelsValue}>All Models</MenuItem>
+                  )}
                   {modelNames.map((name) => (
                     <MenuItem key={name} value={name}>
                       {name}

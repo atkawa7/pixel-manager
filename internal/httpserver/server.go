@@ -372,9 +372,62 @@ func (s *Server) handleBuilds(w http.ResponseWriter, r *http.Request) {
 
 	case http.MethodGet:
 		builds := s.mgr.ListBuilds()
+		page := 1
+		pageSize := 10
+		if raw := strings.TrimSpace(r.URL.Query().Get("page")); raw != "" {
+			if parsed, err := numconv.Atoi(raw); err == nil && parsed > 0 {
+				page = parsed
+			}
+		}
+		if raw := strings.TrimSpace(r.URL.Query().Get("pageSize")); raw != "" {
+			if parsed, err := numconv.Atoi(raw); err == nil && parsed > 0 {
+				if parsed > 100 {
+					parsed = 100
+				}
+				pageSize = parsed
+			}
+		}
+
+		total := len(builds)
+		totalPages := 1
+		if total == 0 {
+			totalPages = 0
+		} else {
+			totalPages = (total + pageSize - 1) / pageSize
+		}
+		if totalPages > 0 && page > totalPages {
+			page = totalPages
+		}
+
+		start := 0
+		end := 0
+		if total > 0 && totalPages > 0 {
+			start = (page - 1) * pageSize
+			if start < 0 {
+				start = 0
+			}
+			if start > total {
+				start = total
+			}
+			end = start + pageSize
+			if end > total {
+				end = total
+			}
+		}
+
+		paged := builds
+		if total == 0 {
+			paged = []manager.Build{}
+		} else {
+			paged = builds[start:end]
+		}
 		writeJSON(w, http.StatusOK, map[string]any{
-			"count":  len(builds),
-			"builds": builds,
+			"count":      len(paged),
+			"builds":     paged,
+			"page":       page,
+			"pageSize":   pageSize,
+			"total":      total,
+			"totalPages": totalPages,
 		})
 
 	default:

@@ -8,6 +8,7 @@ import { ManagersPage } from "./pages/ManagersPage";
 import { ModelsPage } from "./pages/ModelsPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { ApiDocsPage } from "./pages/ApiDocsPage";
+import { BuildsPage } from "./pages/BuildsPage";
 import "./styles.css";
 
 const theme = createTheme({
@@ -43,6 +44,7 @@ function App() {
             <Route path="/portal" element={<PortalPage />} />
             <Route path="/managers" element={<ManagersPage />} />
             <Route path="/models" element={<ModelsPage />} />
+            <Route path="/builds" element={<BuildsPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/docs" element={<ApiDocsPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

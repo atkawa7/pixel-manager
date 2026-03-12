@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import DeleteOutlineRoundedIcon from "@mui/icons-material/DeleteOutlineRounded";
 import EditRoundedIcon from "@mui/icons-material/EditRounded";
+import PlayArrowRoundedIcon from "@mui/icons-material/PlayArrowRounded";
 import RefreshRoundedIcon from "@mui/icons-material/RefreshRounded";
 import SaveRoundedIcon from "@mui/icons-material/SaveRounded";
 import {
@@ -14,15 +15,17 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   Grid,
+  MenuItem,
   Snackbar,
   Stack,
+  Switch,
   TextField,
   Typography,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import type { BuildInfo } from "../types";
-import { deleteModel, getBuild, getModels, setModel, uploadBuild } from "../api";
+import { deleteModel, getModels, setModel, startInstance } from "../api";
 
 interface NoticeState {
   open: boolean;
@@ -30,12 +33,55 @@ interface NoticeState {
   type: AlertColor;
 }
 
+interface ResolutionPreset {
+  id: string;
+  label: string;
+  resX: number;
+  resY: number;
+}
+
+const resolutionPresets: ResolutionPreset[] = [
+  { id: "360p", label: "360p (640x360)", resX: 640, resY: 360 },
+  { id: "480p", label: "480p (854x480)", resX: 854, resY: 480 },
+  { id: "720p", label: "720p (1280x720)", resX: 1280, resY: 720 },
+  { id: "1440p", label: "1440p (2560x1440)", resX: 2560, resY: 1440 },
+  { id: "1080p", label: "1080p (1920x1080)", resX: 1920, resY: 1080 },
+];
+
+const codecOptions = [
+  { label: "H.264", value: "H264" },
+  { label: "VP8", value: "VP8" },
+  { label: "VP9", value: "VP9" },
+  { label: "AV1", value: "AV1" },
+];
+
+const d3dRendererOptions = [
+  { label: "Auto", value: "" },
+  { label: "d3d11", value: "d3d11" },
+  { label: "d3d12", value: "d3d12" },
+];
+
 export function ModelsPage() {
   const [models, setModels] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [exePath, setExePath] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [activeBuild, setActiveBuild] = useState<BuildInfo | null>(null);
+  const [startModel, setStartModel] = useState("default");
+  const [startPort, setStartPort] = useState(8888);
+  const [selectedCodec, setSelectedCodec] = useState("H264");
+  const [selectedResolution, setSelectedResolution] = useState("720p");
+  const [encoderMinQuality, setEncoderMinQuality] = useState<number>(-1);
+  const [encoderMaxQuality, setEncoderMaxQuality] = useState<number>(-1);
+  const [webrtcMinBitrateMbps, setWebrtcMinBitrateMbps] = useState<number>(1);
+  const [webrtcStartBitrateMbps, setWebrtcStartBitrateMbps] = useState<number>(10);
+  const [webrtcMaxBitrateMbps, setWebrtcMaxBitrateMbps] = useState<number>(100);
+  const [pixelStreamingHudStats, setPixelStreamingHudStats] = useState<boolean>(false);
+  const [stdOut, setStdOut] = useState<boolean>(false);
+  const [fullStdOutLogOutput, setFullStdOutLogOutput] = useState<boolean>(false);
+  const [webrtcDisableReceiveAudio, setWebrtcDisableReceiveAudio] = useState<boolean>(false);
+  const [webrtcDisableTransmitAudio, setWebrtcDisableTransmitAudio] = useState<boolean>(false);
+  const [d3dRenderer, setD3dRenderer] = useState<"" | "d3d11" | "d3d12">("");
+  const [d3dDebug, setD3dDebug] = useState<boolean>(false);
+  const [startDialogOpen, setStartDialogOpen] = useState(false);
   const [modelToDelete, setModelToDelete] = useState("");
   const [notice, setNotice] = useState<NoticeState>({
     open: false,
@@ -50,7 +96,11 @@ export function ModelsPage() {
   async function loadModels() {
     try {
       const data = await getModels();
-      setModels(data.models || {});
+      const nextModels = data.models || {};
+      setModels(nextModels);
+      if (!nextModels[startModel]) {
+        setStartModel(nextModels.default ? "default" : Object.keys(nextModels)[0] || "default");
+      }
     } catch (error) {
       notify((error as Error).message, "error");
     }
@@ -77,68 +127,6 @@ export function ModelsPage() {
     }
   }
 
-  function statusLabel(status: BuildInfo["status"]) {
-    if (status === "queued") {
-      return "Queued";
-    }
-    if (status === "extracting_and_scanning") {
-      return "Extracting and Scanning";
-    }
-    if (status === "ready") {
-      return "Ready";
-    }
-    return "Failed";
-  }
-
-  function statusSeverity(status: BuildInfo["status"]): AlertColor {
-    if (status === "failed") {
-      return "error";
-    }
-    if (status === "ready") {
-      return "success";
-    }
-    return "info";
-  }
-
-  async function onUploadBuild(file: File) {
-    if (!file.name.toLowerCase().endsWith(".zip")) {
-      notify("Only Windows build packages are supported in .ZIP format", "error");
-      return;
-    }
-    const maxBytes = 4 * 1024 * 1024 * 1024;
-    if (file.size > maxBytes) {
-      notify("Maximum upload size is 4GB", "error");
-      return;
-    }
-
-    setUploading(true);
-    try {
-      const created = await uploadBuild(file);
-      setActiveBuild(created);
-      notify("Build uploaded and queued");
-    } catch (error) {
-      notify((error as Error).message, "error");
-    } finally {
-      setUploading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (!activeBuild || activeBuild.status === "ready" || activeBuild.status === "failed") {
-      return;
-    }
-
-    const timer = setInterval(() => {
-      void getBuild(activeBuild.id)
-        .then((latest) => {
-          setActiveBuild(latest);
-        })
-        .catch(() => undefined);
-    }, 2000);
-
-    return () => clearInterval(timer);
-  }, [activeBuild]);
-
   async function onConfirmDelete() {
     if (!modelToDelete) {
       return;
@@ -151,6 +139,40 @@ export function ModelsPage() {
       notify((error as Error).message, "error");
     } finally {
       setModelToDelete("");
+    }
+  }
+
+  async function onStartFromModel() {
+    if (!startModel) {
+      notify("Select a model first", "error");
+      return;
+    }
+    const preset =
+      resolutionPresets.find((item) => item.id === selectedResolution) || resolutionPresets[2];
+    try {
+      const data = await startInstance({
+        model: startModel,
+        pixelStreamingServerPort: Number(startPort) || 8888,
+        encoderCodec: selectedCodec,
+        resX: preset.resX,
+        resY: preset.resY,
+        encoderMinQuality,
+        encoderMaxQuality,
+        webrtcMinBitrateMbps,
+        webrtcStartBitrateMbps,
+        webrtcMaxBitrateMbps,
+        pixelStreamingHudStats,
+        stdOut,
+        fullStdOutLogOutput,
+        webrtcDisableReceiveAudio,
+        webrtcDisableTransmitAudio,
+        d3dRenderer,
+        d3dDebug,
+      });
+      notify(data.message || "Instance started");
+      setStartDialogOpen(false);
+    } catch (error) {
+      notify((error as Error).message, "error");
     }
   }
 
@@ -169,75 +191,22 @@ export function ModelsPage() {
 
       <Card>
         <CardContent>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1.5} alignItems={{ md: "center" }}>
+            <Alert severity="info" sx={{ flex: 1 }}>
+              Build uploads were moved to the Builds page. Create models from uploaded build executables there.
+            </Alert>
+            <Button component="a" href="/builds" variant="outlined">
+              Open Builds
+            </Button>
+          </Stack>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
           <Typography variant="h6" sx={{ mb: 2 }}>
             Add or Update Model
           </Typography>
-          <Stack spacing={1.5} sx={{ mb: 2.5 }}>
-            <Alert severity="info">
-              Only Windows build packages are supported in <strong>.ZIP</strong> format. Maximum size is{" "}
-              <strong>4GB</strong>. Upload packaged build output, not project source files.
-            </Alert>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
-              <Button variant="outlined" component="label" disabled={uploading}>
-                {uploading ? "Uploading..." : "Upload Build ZIP"}
-                <input
-                  hidden
-                  type="file"
-                  accept=".zip,application/zip"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) {
-                      void onUploadBuild(file);
-                    }
-                    event.target.value = "";
-                  }}
-                />
-              </Button>
-              <Typography variant="body2" color="text.secondary">
-                Storage path: /builds/&lt;build_id&gt;/unzipped_processes
-              </Typography>
-            </Stack>
-            {activeBuild && (
-              <Alert severity={statusSeverity(activeBuild.status)}>
-                <strong>{statusLabel(activeBuild.status)}</strong>: {activeBuild.message}
-              </Alert>
-            )}
-            {activeBuild && activeBuild.status === "ready" && (
-              <Card variant="outlined">
-                <CardContent>
-                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
-                    Discovered Executables
-                  </Typography>
-                  <Stack spacing={1}>
-                    {activeBuild.executables.map((exe) => (
-                      <Stack
-                        key={exe}
-                        direction={{ xs: "column", md: "row" }}
-                        spacing={1}
-                        alignItems={{ md: "center" }}
-                      >
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ fontFamily: "monospace", wordBreak: "break-all", flex: 1 }}
-                        >
-                          {exe}
-                        </Typography>
-                        <Button
-                          size="small"
-                          onClick={() => {
-                            setExePath(exe);
-                          }}
-                        >
-                          Use Path
-                        </Button>
-                      </Stack>
-                    ))}
-                  </Stack>
-                </CardContent>
-              </Card>
-            )}
-          </Stack>
           <Box component="form" onSubmit={onSaveModel}>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 4 }}>
@@ -276,6 +245,36 @@ export function ModelsPage() {
               </Grid>
             </Grid>
           </Box>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent>
+          <Typography variant="h6" sx={{ mb: 2 }}>
+            Start Instance From Model
+          </Typography>
+          <Stack direction={{ xs: "column", md: "row" }} spacing={1} alignItems={{ md: "center" }}>
+            <TextField
+              select
+              fullWidth
+              label="Model"
+              value={startModel}
+              onChange={(event) => setStartModel(event.target.value)}
+            >
+              {Object.keys(models).map((modelName) => (
+                <MenuItem key={modelName} value={modelName}>
+                  {modelName}
+                </MenuItem>
+              ))}
+            </TextField>
+            <Button
+              variant="contained"
+              startIcon={<PlayArrowRoundedIcon />}
+              onClick={() => setStartDialogOpen(true)}
+            >
+              Open Start Form
+            </Button>
+          </Stack>
         </CardContent>
       </Card>
 
@@ -334,6 +333,16 @@ export function ModelsPage() {
                           >
                             Edit
                           </Button>
+                          <Button
+                            size="small"
+                            startIcon={<PlayArrowRoundedIcon />}
+                            onClick={() => {
+                              setStartModel(modelName);
+                              setStartDialogOpen(true);
+                            }}
+                          >
+                            Start
+                          </Button>
                           {!isDefault && (
                             <Button
                               size="small"
@@ -371,6 +380,197 @@ export function ModelsPage() {
           <Button onClick={() => setModelToDelete("")}>Cancel</Button>
           <Button color="error" variant="contained" onClick={() => void onConfirmDelete()}>
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={startDialogOpen} onClose={() => setStartDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle>Start Instance From Model</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0.5 }}>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField
+                select
+                fullWidth
+                label="Model"
+                value={startModel}
+                onChange={(event) => setStartModel(event.target.value)}
+              >
+                {Object.keys(models).map((modelName) => (
+                  <MenuItem key={modelName} value={modelName}>
+                    {modelName}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 2 }}>
+              <TextField
+                select
+                fullWidth
+                label="Encoder Codec"
+                value={selectedCodec}
+                onChange={(event) => setSelectedCodec(event.target.value)}
+              >
+                {codecOptions.map((codec) => (
+                  <MenuItem key={codec.value} value={codec.value}>
+                    {codec.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField
+                select
+                fullWidth
+                label="Resolution"
+                value={selectedResolution}
+                onChange={(event) => setSelectedResolution(event.target.value)}
+              >
+                {resolutionPresets.map((preset) => (
+                  <MenuItem key={preset.id} value={preset.id}>
+                    {preset.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 2 }}>
+              <TextField
+                label="Port"
+                type="number"
+                fullWidth
+                value={startPort}
+                onChange={(event) => setStartPort(Number(event.target.value) || 0)}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField
+                label="Min Quality"
+                type="number"
+                fullWidth
+                value={encoderMinQuality}
+                onChange={(event) => setEncoderMinQuality(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 3 }}>
+              <TextField
+                label="Max Quality"
+                type="number"
+                fullWidth
+                value={encoderMaxQuality}
+                onChange={(event) => setEncoderMaxQuality(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="WebRTC Min Bitrate (Mbps)"
+                type="number"
+                fullWidth
+                value={webrtcMinBitrateMbps}
+                onChange={(event) => setWebrtcMinBitrateMbps(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="WebRTC Start Bitrate (Mbps)"
+                type="number"
+                fullWidth
+                value={webrtcStartBitrateMbps}
+                onChange={(event) => setWebrtcStartBitrateMbps(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                label="WebRTC Max Bitrate (Mbps)"
+                type="number"
+                fullWidth
+                value={webrtcMaxBitrateMbps}
+                onChange={(event) => setWebrtcMaxBitrateMbps(Number(event.target.value))}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={pixelStreamingHudStats}
+                    onChange={(event) => setPixelStreamingHudStats(event.target.checked)}
+                  />
+                }
+                label="PixelStreaming HUD Stats"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={<Switch checked={stdOut} onChange={(event) => setStdOut(event.target.checked)} />}
+                label="Enable StdOut"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={fullStdOutLogOutput}
+                    onChange={(event) => setFullStdOutLogOutput(event.target.checked)}
+                  />
+                }
+                label="Full StdOut Log Output"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={webrtcDisableReceiveAudio}
+                    onChange={(event) => setWebrtcDisableReceiveAudio(event.target.checked)}
+                  />
+                }
+                label="Disable WebRTC Receive Audio"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 6 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={webrtcDisableTransmitAudio}
+                    onChange={(event) => setWebrtcDisableTransmitAudio(event.target.checked)}
+                  />
+                }
+                label="Disable WebRTC Transmit Audio"
+              />
+            </Grid>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <TextField
+                select
+                fullWidth
+                label="D3D Renderer"
+                value={d3dRenderer}
+                onChange={(event) =>
+                  setD3dRenderer(event.target.value as "" | "d3d11" | "d3d12")
+                }
+              >
+                {d3dRendererOptions.map((opt) => (
+                  <MenuItem key={opt.label} value={opt.value}>
+                    {opt.label}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid size={{ xs: 12, md: 8 }}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={d3dDebug}
+                    onChange={(event) => setD3dDebug(event.target.checked)}
+                  />
+                }
+                label="Use D3D Debug Device (-d3ddebug)"
+              />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStartDialogOpen(false)}>Cancel</Button>
+          <Button variant="contained" startIcon={<PlayArrowRoundedIcon />} onClick={() => void onStartFromModel()}>
+            Start
           </Button>
         </DialogActions>
       </Dialog>

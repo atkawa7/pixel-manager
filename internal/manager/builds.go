@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -94,6 +95,9 @@ func (m *Manager) ListBuilds() []Build {
 	for _, build := range m.builds {
 		out = append(out, m.copyBuild(*build))
 	}
+	sort.Slice(out, func(i, j int) bool {
+		return out[i].CreatedAt > out[j].CreatedAt
+	})
 	return out
 }
 
@@ -236,6 +240,10 @@ func safeExtractTarget(rootDir, entry string) (string, error) {
 
 func (m *Manager) copyBuild(b Build) Build {
 	out := b
+	if len(b.Executables) == 0 {
+		out.Executables = []string{}
+		return out
+	}
 	out.Executables = append([]string(nil), b.Executables...)
 	return out
 }

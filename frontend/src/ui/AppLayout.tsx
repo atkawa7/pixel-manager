@@ -3,6 +3,7 @@ import HubOutlinedIcon from "@mui/icons-material/HubOutlined";
 import Inventory2OutlinedIcon from "@mui/icons-material/Inventory2Outlined";
 import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined";
 import SettingsOutlinedIcon from "@mui/icons-material/SettingsOutlined";
+import ArchiveOutlinedIcon from "@mui/icons-material/ArchiveOutlined";
 import {
   Box,
   Divider,
@@ -26,9 +27,10 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { label: "Portal", path: "/portal", icon: <DashboardOutlinedIcon /> },
+  { label: "Instances", path: "/", icon: <DashboardOutlinedIcon /> },
   { label: "Managers", path: "/managers", icon: <HubOutlinedIcon /> },
   { label: "Models", path: "/models", icon: <Inventory2OutlinedIcon /> },
+  { label: "Builds", path: "/builds", icon: <ArchiveOutlinedIcon /> },
   { label: "Settings", path: "/settings", icon: <SettingsOutlinedIcon /> },
 ];
 

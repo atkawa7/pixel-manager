@@ -2,10 +2,14 @@
   "type": "object",
   "properties": {
     "count": { "type": "integer" },
+    "page": { "type": "integer" },
+    "pageSize": { "type": "integer" },
+    "total": { "type": "integer" },
+    "totalPages": { "type": "integer" },
     "builds": {
       "type": "array",
       "items": { "$ref": "./Build.json" }
     }
   },
-  "required": ["count", "builds"]
+  "required": ["count", "builds", "page", "pageSize", "total", "totalPages"]
 }
