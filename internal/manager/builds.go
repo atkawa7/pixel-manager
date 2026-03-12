@@ -101,6 +101,21 @@ func (m *Manager) ListBuilds() []Build {
 	return out
 }
 
+func (m *Manager) RemoveBuild(id string) {
+	m.buildMu.Lock()
+	build, ok := m.builds[id]
+	if ok {
+		delete(m.builds, id)
+	}
+	m.buildMu.Unlock()
+
+	if !ok {
+		return
+	}
+
+	_ = os.RemoveAll(filepath.Dir(build.ZipPath))
+}
+
 func (m *Manager) processBuildQueue() {
 	for id := range m.buildQueue {
 		m.updateBuildStatus(id, BuildStatusExtractingAndScanning, "Extracting and Scanning: checking package integrity and safety.")

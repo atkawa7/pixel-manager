@@ -21,7 +21,14 @@ import {
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
 import type { BuildInfo } from "../types";
-import { getBuild, getBuildExecutables, listBuilds, setModel, uploadBuild } from "../api";
+import {
+  getBuild,
+  getBuildExecutables,
+  listBuilds,
+  setModel,
+  uploadBuild,
+  uploadBuildFromURL,
+} from "../api";
 
 interface NoticeState {
   open: boolean;
@@ -45,6 +52,7 @@ export function BuildsPage() {
   const [creatingFrom, setCreatingFrom] = useState<BuildInfo | null>(null);
   const [modelName, setModelName] = useState("");
   const [modelPath, setModelPath] = useState("");
+  const [sourceURL, setSourceURL] = useState("");
 
   function notify(text: string, type: AlertColor = "success") {
     setNotice({ open: true, text, type });
@@ -147,6 +155,34 @@ export function BuildsPage() {
     }
   }
 
+  async function onImportFromURL() {
+    const trimmedURL = sourceURL.trim();
+    if (!trimmedURL) {
+      notify("Public link is required", "error");
+      return;
+    }
+    if (!/^https?:\/\//i.test(trimmedURL)) {
+      notify("Public link must start with http:// or https://", "error");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      await uploadBuildFromURL(trimmedURL);
+      setSourceURL("");
+      if (page !== 1) {
+        setPage(1);
+      } else {
+        void loadBuilds();
+      }
+      notify("Build imported and queued");
+    } catch (error) {
+      notify((error as Error).message, "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
   async function openCreateModel(build: BuildInfo, preferredPath: string) {
     let path = preferredPath;
     if (!path) {
@@ -238,6 +274,25 @@ export function BuildsPage() {
               <Typography variant="body2" color="text.secondary">
                 Storage path: /builds/&lt;build_id&gt;/unzipped_processes
               </Typography>
+            </Stack>
+            <Stack direction={{ xs: "column", md: "row" }} spacing={1}>
+              <TextField
+                fullWidth
+                label="Import from public link"
+                placeholder="https://..."
+                value={sourceURL}
+                onChange={(event) => setSourceURL(event.target.value)}
+                disabled={uploading}
+                helperText="Supports public Dropbox, OneDrive, Google Drive, and WeShare links."
+              />
+              <Button
+                variant="outlined"
+                onClick={() => void onImportFromURL()}
+                disabled={uploading}
+                sx={{ minWidth: { md: 180 } }}
+              >
+                {uploading ? "Importing..." : "Import Link"}
+              </Button>
             </Stack>
           </Stack>
         </CardContent>

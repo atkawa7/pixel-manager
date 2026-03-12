@@ -146,6 +146,15 @@ export async function uploadBuild(file: File): Promise<BuildInfo> {
   return parseJson<BuildInfo>(response);
 }
 
+export async function uploadBuildFromURL(url: string): Promise<BuildInfo> {
+  const response = await fetch(buildURL("/builds"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  });
+  return parseJson<BuildInfo>(response);
+}
+
 export async function listBuilds(page = 1, pageSize = 10): Promise<BuildsResponse> {
   const response = await fetch(
     buildURL(`/builds?page=${encodeURIComponent(String(page))}&pageSize=${encodeURIComponent(String(pageSize))}`),
