@@ -414,6 +414,7 @@ func buildPixelArgs(pixelStreamingIP string,
 		fmt.Sprintf("-ResY=%d", resY),
 		"-Windowed",
 		"-RenderOffScreen",
+
 		"-ForceRes",
 		fmt.Sprintf("-PixelStreamingID=%s", pixelStreamingID),
 		"-d3d11",
