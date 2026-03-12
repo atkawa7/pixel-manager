@@ -21,7 +21,8 @@ import {
   Typography,
 } from "@mui/material";
 import type { AlertColor } from "@mui/material";
-import { deleteModel, getModels, setModel } from "../api";
+import type { BuildInfo } from "../types";
+import { deleteModel, getBuild, getModels, setModel, uploadBuild } from "../api";
 
 interface NoticeState {
   open: boolean;
@@ -33,6 +34,8 @@ export function ModelsPage() {
   const [models, setModels] = useState<Record<string, string>>({});
   const [name, setName] = useState("");
   const [exePath, setExePath] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [activeBuild, setActiveBuild] = useState<BuildInfo | null>(null);
   const [modelToDelete, setModelToDelete] = useState("");
   const [notice, setNotice] = useState<NoticeState>({
     open: false,
@@ -74,6 +77,68 @@ export function ModelsPage() {
     }
   }
 
+  function statusLabel(status: BuildInfo["status"]) {
+    if (status === "queued") {
+      return "Queued";
+    }
+    if (status === "extracting_and_scanning") {
+      return "Extracting and Scanning";
+    }
+    if (status === "ready") {
+      return "Ready";
+    }
+    return "Failed";
+  }
+
+  function statusSeverity(status: BuildInfo["status"]): AlertColor {
+    if (status === "failed") {
+      return "error";
+    }
+    if (status === "ready") {
+      return "success";
+    }
+    return "info";
+  }
+
+  async function onUploadBuild(file: File) {
+    if (!file.name.toLowerCase().endsWith(".zip")) {
+      notify("Only Windows build packages are supported in .ZIP format", "error");
+      return;
+    }
+    const maxBytes = 4 * 1024 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      notify("Maximum upload size is 4GB", "error");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const created = await uploadBuild(file);
+      setActiveBuild(created);
+      notify("Build uploaded and queued");
+    } catch (error) {
+      notify((error as Error).message, "error");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (!activeBuild || activeBuild.status === "ready" || activeBuild.status === "failed") {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      void getBuild(activeBuild.id)
+        .then((latest) => {
+          setActiveBuild(latest);
+        })
+        .catch(() => undefined);
+    }, 2000);
+
+    return () => clearInterval(timer);
+  }, [activeBuild]);
+
   async function onConfirmDelete() {
     if (!modelToDelete) {
       return;
@@ -107,6 +172,72 @@ export function ModelsPage() {
           <Typography variant="h6" sx={{ mb: 2 }}>
             Add or Update Model
           </Typography>
+          <Stack spacing={1.5} sx={{ mb: 2.5 }}>
+            <Alert severity="info">
+              Only Windows build packages are supported in <strong>.ZIP</strong> format. Maximum size is{" "}
+              <strong>4GB</strong>. Upload packaged build output, not project source files.
+            </Alert>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1} alignItems={{ sm: "center" }}>
+              <Button variant="outlined" component="label" disabled={uploading}>
+                {uploading ? "Uploading..." : "Upload Build ZIP"}
+                <input
+                  hidden
+                  type="file"
+                  accept=".zip,application/zip"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (file) {
+                      void onUploadBuild(file);
+                    }
+                    event.target.value = "";
+                  }}
+                />
+              </Button>
+              <Typography variant="body2" color="text.secondary">
+                Storage path: /builds/&lt;build_id&gt;/unzipped_processes
+              </Typography>
+            </Stack>
+            {activeBuild && (
+              <Alert severity={statusSeverity(activeBuild.status)}>
+                <strong>{statusLabel(activeBuild.status)}</strong>: {activeBuild.message}
+              </Alert>
+            )}
+            {activeBuild && activeBuild.status === "ready" && (
+              <Card variant="outlined">
+                <CardContent>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600, mb: 1 }}>
+                    Discovered Executables
+                  </Typography>
+                  <Stack spacing={1}>
+                    {activeBuild.executables.map((exe) => (
+                      <Stack
+                        key={exe}
+                        direction={{ xs: "column", md: "row" }}
+                        spacing={1}
+                        alignItems={{ md: "center" }}
+                      >
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ fontFamily: "monospace", wordBreak: "break-all", flex: 1 }}
+                        >
+                          {exe}
+                        </Typography>
+                        <Button
+                          size="small"
+                          onClick={() => {
+                            setExePath(exe);
+                          }}
+                        >
+                          Use Path
+                        </Button>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </CardContent>
+              </Card>
+            )}
+          </Stack>
           <Box component="form" onSubmit={onSaveModel}>
             <Grid container spacing={2}>
               <Grid size={{ xs: 12, md: 4 }}>

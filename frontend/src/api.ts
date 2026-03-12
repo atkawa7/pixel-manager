@@ -1,5 +1,8 @@
 import type {
   AppConfigResponse,
+  BuildExecutablesResponse,
+  BuildInfo,
+  BuildsResponse,
   InstanceDetailsResponse,
   InstancesResponse,
   ManagersResponse,
@@ -131,4 +134,29 @@ export async function stopAllInstances(): Promise<StopAllResponse> {
 
 export function getOpenAPIURL(baseURL = ""): string {
   return buildURL("/openapi.json", baseURL);
+}
+
+export async function uploadBuild(file: File): Promise<BuildInfo> {
+  const formData = new FormData();
+  formData.append("file", file);
+  const response = await fetch(buildURL("/builds"), {
+    method: "POST",
+    body: formData,
+  });
+  return parseJson<BuildInfo>(response);
+}
+
+export async function listBuilds(): Promise<BuildsResponse> {
+  const response = await fetch(buildURL("/builds"));
+  return parseJson<BuildsResponse>(response);
+}
+
+export async function getBuild(id: string): Promise<BuildInfo> {
+  const response = await fetch(buildURL(`/builds/${encodeURIComponent(id)}`));
+  return parseJson<BuildInfo>(response);
+}
+
+export async function getBuildExecutables(id: string): Promise<BuildExecutablesResponse> {
+  const response = await fetch(buildURL(`/builds/${encodeURIComponent(id)}/executables`));
+  return parseJson<BuildExecutablesResponse>(response);
 }

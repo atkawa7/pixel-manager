@@ -54,3 +54,23 @@ type ModelRequest struct {
 	Name    string `json:"name"`
 	ExePath string `json:"exePath"`
 }
+
+const (
+	BuildStatusQueued                = "queued"
+	BuildStatusExtractingAndScanning = "extracting_and_scanning"
+	BuildStatusReady                 = "ready"
+	BuildStatusFailed                = "failed"
+)
+
+type Build struct {
+	ID           string   `json:"id"`
+	FileName     string   `json:"fileName"`
+	FileSize     int64    `json:"fileSize"`
+	Status       string   `json:"status"`
+	Message      string   `json:"message"`
+	CreatedAt    string   `json:"createdAt"`
+	UpdatedAt    string   `json:"updatedAt"`
+	ZipPath      string   `json:"zipPath"`
+	ExtractedDir string   `json:"extractedDir"`
+	Executables  []string `json:"executables"`
+}

@@ -1,0 +1,12 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "buildId": { "type": "string" },
+    "status": { "type": "string" },
+    "executables": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["buildId", "status", "executables"]
+}

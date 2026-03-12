@@ -1,0 +1,11 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "count": { "type": "integer" },
+    "builds": {
+      "type": "array",
+      "items": { "$ref": "./Build.json" }
+    }
+  },
+  "required": ["count", "builds"]
+}

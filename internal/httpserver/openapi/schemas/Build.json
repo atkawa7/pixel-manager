@@ -1,0 +1,22 @@
+﻿{
+  "type": "object",
+  "properties": {
+    "id": { "type": "string" },
+    "fileName": { "type": "string" },
+    "fileSize": { "type": "integer", "format": "int64" },
+    "status": {
+      "type": "string",
+      "enum": ["queued", "extracting_and_scanning", "ready", "failed"]
+    },
+    "message": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "zipPath": { "type": "string" },
+    "extractedDir": { "type": "string" },
+    "executables": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "required": ["id", "fileName", "fileSize", "status", "message", "createdAt", "updatedAt", "zipPath", "extractedDir", "executables"]
+}

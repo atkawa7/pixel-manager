@@ -16,6 +16,8 @@ import (
 	"time"
 )
 
+const maxBuildZipSize int64 = 4 * 1024 * 1024 * 1024
+
 type Server struct {
 	cfg    config.Config
 	mgr    *manager.Manager
@@ -63,6 +65,8 @@ func (s *Server) registerAPIRoutes(mux *http.ServeMux, prefix string) {
 	mux.HandleFunc(prefix+"/models/", s.handleModelByName)
 	mux.HandleFunc(prefix+"/managers", s.handleManagers)
 	mux.HandleFunc(prefix+"/config", s.handleConfig)
+	mux.HandleFunc(prefix+"/builds", s.handleBuilds)
+	mux.HandleFunc(prefix+"/builds/", s.handleBuildByID)
 	mux.HandleFunc(prefix+"/openapi.json", s.handleOpenAPI)
 	mux.HandleFunc(prefix+"/openapi/", s.handleOpenAPIAsset)
 }
@@ -318,6 +322,99 @@ func (s *Server) handleConfig(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func (s *Server) handleBuilds(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		r.Body = http.MaxBytesReader(w, r.Body, maxBuildZipSize)
+		if err := r.ParseMultipartForm(32 << 20); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"error": "invalid multipart payload or file exceeds 4GB limit",
+			})
+			return
+		}
+
+		file, header, err := r.FormFile("file")
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "file field is required"})
+			return
+		}
+		defer file.Close()
+
+		if !strings.EqualFold(path.Ext(header.Filename), ".zip") {
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"error": "only Windows build packages are supported in .ZIP format",
+			})
+			return
+		}
+
+		build, err := s.mgr.RegisterBuild(header.Filename, header.Size)
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+
+		if err := s.mgr.SaveBuildZip(build.ID, file); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+			return
+		}
+
+		if err := s.mgr.EnqueueBuild(build.ID); err != nil {
+			writeJSON(w, http.StatusTooManyRequests, map[string]any{"error": err.Error()})
+			return
+		}
+
+		out, ok := s.mgr.GetBuild(build.ID)
+		if !ok {
+			writeJSON(w, http.StatusInternalServerError, map[string]any{"error": "failed to load build status"})
+			return
+		}
+		writeJSON(w, http.StatusAccepted, out)
+
+	case http.MethodGet:
+		builds := s.mgr.ListBuilds()
+		writeJSON(w, http.StatusOK, map[string]any{
+			"count":  len(builds),
+			"builds": builds,
+		})
+
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (s *Server) handleBuildByID(w http.ResponseWriter, r *http.Request) {
+	id, isExecutablesPath, ok := parseBuildPath(r.URL.Path)
+	if !ok || id == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	build, exists := s.mgr.GetBuild(id)
+	if !exists {
+		writeJSON(w, http.StatusNotFound, map[string]any{"error": "build not found"})
+		return
+	}
+
+	if isExecutablesPath {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"buildId":     build.ID,
+			"status":      build.Status,
+			"executables": build.Executables,
+		})
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	writeJSON(w, http.StatusOK, build)
+}
+
 func (s *Server) handleOpenAPI(w http.ResponseWriter, r *http.Request) {
 	s.serveOpenAPIFile(w, "openapi.json")
 }
@@ -418,6 +515,36 @@ func parseInstancePath(path string) (id string, isLogsPath bool, ok bool) {
 			return parts[2], false, true
 		}
 		if len(parts) == 4 && parts[3] == "logs" {
+			return parts[2], true, true
+		}
+	}
+
+	return "", false, false
+}
+
+func parseBuildPath(path string) (id string, isExecutablesPath bool, ok bool) {
+	clean := strings.Trim(path, "/")
+	parts := strings.Split(clean, "/")
+
+	// /builds/{id}
+	// /builds/{id}/executables
+	if len(parts) >= 2 && parts[0] == "builds" {
+		if len(parts) == 2 {
+			return parts[1], false, true
+		}
+		if len(parts) == 3 && parts[2] == "executables" {
+			return parts[1], true, true
+		}
+		return "", false, false
+	}
+
+	// /api/builds/{id}
+	// /api/builds/{id}/executables
+	if len(parts) >= 3 && parts[0] == "api" && parts[1] == "builds" {
+		if len(parts) == 3 {
+			return parts[2], false, true
+		}
+		if len(parts) == 4 && parts[3] == "executables" {
 			return parts[2], true, true
 		}
 	}

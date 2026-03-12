@@ -25,6 +25,7 @@ const (
 	FiveMinutes    = 5 * time.Minute
 	MaxLogLinesPer = 1000
 	LogsRootDir    = "logs"
+	BuildsRootDir  = "/builds"
 )
 
 type Manager struct {
@@ -39,6 +40,10 @@ type Manager struct {
 	processes map[string]*exec.Cmd
 
 	logMu sync.RWMutex
+
+	buildMu    sync.RWMutex
+	builds     map[string]*Build
+	buildQueue chan string
 }
 
 func New(cfg config.Config, etcd *clientv3.Client, signalClient signal.Client) *Manager {
@@ -48,14 +53,18 @@ func New(cfg config.Config, etcd *clientv3.Client, signalClient signal.Client) *
 		managerName = managerHost
 	}
 
-	return &Manager{
+	m := &Manager{
 		cfg:         cfg,
 		etcd:        etcd,
 		signal:      signalClient,
 		managerName: managerName,
 		managerHost: managerName,
 		processes:   map[string]*exec.Cmd{},
+		builds:      map[string]*Build{},
+		buildQueue:  make(chan string, 128),
 	}
+	go m.processBuildQueue()
+	return m
 }
 
 type ManagerRegistration struct {

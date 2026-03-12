@@ -78,3 +78,27 @@ export interface AppConfigResponse {
   configPath: string;
   config: Record<string, string | number | boolean | null>;
 }
+
+export interface BuildInfo {
+  id: string;
+  fileName: string;
+  fileSize: number;
+  status: "queued" | "extracting_and_scanning" | "ready" | "failed";
+  message: string;
+  createdAt: string;
+  updatedAt: string;
+  zipPath: string;
+  extractedDir: string;
+  executables: string[];
+}
+
+export interface BuildsResponse {
+  count: number;
+  builds: BuildInfo[];
+}
+
+export interface BuildExecutablesResponse {
+  buildId: string;
+  status: string;
+  executables: string[];
+}

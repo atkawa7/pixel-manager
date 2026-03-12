@@ -342,6 +342,125 @@
           }
         }
       }
+    },
+    "/builds": {
+      "get": {
+        "summary": "List uploaded builds",
+        "operationId": "listBuilds",
+        "responses": {
+          "200": {
+            "description": "Builds fetched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BuildsResponse" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Upload build ZIP",
+        "operationId": "uploadBuild",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["file"],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Build accepted and queued",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Build" }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid upload",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/builds/{id}": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "summary": "Get build status",
+        "operationId": "getBuild",
+        "responses": {
+          "200": {
+            "description": "Build status fetched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Build" }
+              }
+            }
+          },
+          "404": {
+            "description": "Build not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/builds/{id}/executables": {
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": { "type": "string" }
+        }
+      ],
+      "get": {
+        "summary": "List extracted executable paths for a build",
+        "operationId": "getBuildExecutables",
+        "responses": {
+          "200": {
+            "description": "Executables fetched",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BuildExecutablesResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Build not found",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ErrorResponse" }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -359,7 +478,10 @@
       "ModelsResponse": { "$ref": "./openapi/schemas/ModelsResponse.json" },
       "ManagerNode": { "$ref": "./openapi/schemas/ManagerNode.json" },
       "ManagersResponse": { "$ref": "./openapi/schemas/ManagersResponse.json" },
-      "AppConfigResponse": { "$ref": "./openapi/schemas/AppConfigResponse.json" }
+      "AppConfigResponse": { "$ref": "./openapi/schemas/AppConfigResponse.json" },
+      "Build": { "$ref": "./openapi/schemas/Build.json" },
+      "BuildsResponse": { "$ref": "./openapi/schemas/BuildsResponse.json" },
+      "BuildExecutablesResponse": { "$ref": "./openapi/schemas/BuildExecutablesResponse.json" }
     }
   }
 }
