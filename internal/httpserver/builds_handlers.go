@@ -372,10 +372,40 @@ func resolveImportedFileName(resp *http.Response, sourceURL string) string {
 	}
 
 	if parsed, err := url.Parse(sourceURL); err == nil {
+		if strings.Contains(strings.ToLower(parsed.Hostname()), "sharepoint.com") {
+			if sourcePath := sharePointSourcePath(parsed.Query()); sourcePath != "" {
+				if base := strings.TrimSpace(path.Base(sourcePath)); base != "" && base != "." && base != "/" {
+					return base
+				}
+			}
+		}
 		if base := strings.TrimSpace(path.Base(parsed.Path)); base != "" && base != "." && base != "/" && base != "uc" {
 			return base
 		}
 	}
 
 	return "build.zip"
+}
+
+func sharePointSourcePath(values url.Values) string {
+	candidates := []string{
+		values.Get("SourceUrl"),
+		values.Get("sourceurl"),
+		values.Get("sourceUrl"),
+		values.Get("id"),
+	}
+	for _, candidate := range candidates {
+		candidate = strings.TrimSpace(candidate)
+		if candidate == "" {
+			continue
+		}
+		if decoded, err := url.QueryUnescape(candidate); err == nil {
+			candidate = decoded
+		}
+		if parsed, err := url.Parse(candidate); err == nil && parsed.Path != "" {
+			return parsed.Path
+		}
+		return candidate
+	}
+	return ""
 }
